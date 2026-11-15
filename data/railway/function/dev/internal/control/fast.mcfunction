@@ -1,2 +1,2 @@
-scoreboard players set #speed rw.dev 2
-tellraw @s {"text": "[Railway test] Speed set to approximately 0.249 blocks per tick.", "color": "aqua"}
+execute if score #speed rw.dev matches ..316 run scoreboard players add #speed rw.dev 1
+function railway:dev/internal/speed_report
