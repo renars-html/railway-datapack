@@ -9,8 +9,8 @@ execute if score #occupied rw.dev matches 1 run return 0
 execute store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] Missing carts or UUID/index mismatch. Binding refused.","color":"red"}
 execute unless score #valid rw.sys matches 1 run return 0
-execute unless score #expected rw.sys matches 20 run tellraw @s {"text":"[Railway] This test requires exactly 20 registered carts.","color":"red"}
-execute unless score #expected rw.sys matches 20 run return 0
+execute unless score #expected rw.sys matches 1..24 run tellraw @s {"text":"[Railway] This loop fits 1 to 24 carts at the configured spacing; longer trains need a longer route.","color":"red"}
+execute unless score #expected rw.sys matches 1..24 run return 0
 scoreboard players set #controllers rw.sys 0
 $execute as @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] run scoreboard players add #controllers rw.sys 1
 execute unless score #controllers rw.sys matches 1 run return 0
@@ -25,5 +25,5 @@ $data modify storage railway:dev loop_train set value $(id)
 $data modify storage railway:state trains.t$(id).route set value "dev_loop"
 $data modify storage railway:state trains.t$(id).state set value "stopped"
 data modify storage railway:api result set value {ok:1b}
-tellraw @s {"text":"[Railway] Twenty-cart train bound and held on the loop. Use api/train/start {train:ID}. Old test carts are parked in the center.","color":"aqua"}
+tellraw @s {"text":"[Railway] Registered train bound and held on the loop. Use api/train/start {train:ID}. Old test carts are parked in the center.","color":"aqua"}
 return 1

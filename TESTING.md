@@ -4,6 +4,43 @@ Train inspection now prints the expected information, confirmed by the player.
 This cycle connects persistent membership to the existing movement path. It does
 not add pathfinding, collision protection, reservations, or survival controls.
 
+## Creating and rebuilding compositions
+
+In Creative, stand on clear flat ground away from the loop (reserve 16×36 blocks
+extending along +X/+Z if rebuilding). Examples:
+
+```mcfunction
+/function railway:api/train/spawn {normal:19,chest:1}
+/function railway:api/train/rebuild {train:ID,normal:18,chest:2}
+```
+
+Counts must be integers, each 0–64, totaling **1–64**. Zero of either type is
+allowed. Normal carts come first, followed by chest carts. New chests are empty.
+`spawn` creates a new train ID. `rebuild` retires the specified ID and creates a
+replacement with a **new ID**, including when the old carts were destroyed.
+Stop the old train and dismount before rebuilding. Its controller must be loaded.
+Existing loaded carts/cargo are preserved in a separate grid starting 20 blocks
+along +Z; they are detached rather than deleted. Unloaded old carts stay associated
+with the retired ID and cannot become members of the replacement automatically.
+Retired IDs cannot restart or accept attachments. No cargo is copied or respawned.
+
+For the destroyed 20-cart train, use `rebuild` with its old ID and counts 19/1.
+Then use the newly printed ID in `dev/long_train` and the tests below. If the train
+was already bound, rebuild frees the loop for the replacement. Put known items in
+its new chest cart before cargo tests; expect those items to survive unchanged.
+
+The loop binding now accepts **1–24 carts**; 25–64 carts can be created/inspected
+but need a longer test route before movement. The 20-cart tests below remain the
+required long-train acceptance gate. Verify spawn with a short mixed composition,
+and rebuilding it with different counts, before testing the long train. Invalid
+counts (negative, fractional, zero total, or total 65+) must return 0 without
+creating/retiring a train. Check that surviving old chest cargo remains in its
+parked cart, and that the replacement has the requested count/order.
+
+Member records now include `kind` (`normal` or `chest`). The ordered UUID/index
+records remain the basis for a future interface that selects arbitrary cart
+orders; this count-based command currently groups the two types.
+
 ## Setup
 
 1. Update and `/reload`. Return to the existing rail loop with the original
@@ -18,7 +55,7 @@ not add pathfinding, collision protection, reservations, or survival controls.
    Replace `ID` with its integer value. Expect 20 carts to form one held train
    around the loop. The original two fixture carts and their cargo are parked
    inside the loop. This binding is single-use and changes no blocks. It refuses
-   missing carts, incorrect membership, passengers, or a train of another length.
+   missing carts, incorrect membership, passengers, or trains longer than 24 carts.
 
 ## Tests
 

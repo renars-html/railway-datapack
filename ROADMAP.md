@@ -4,6 +4,9 @@ Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
 Status: registry inspection has been confirmed in-game. Milestone 2 now binds
 20 persistent cart members to the test loop through a registered train controller,
 with per-train start/stop/speed, UUID/index validation, and reload pause epochs.
+Operator spawn/rebuild commands support count-based compositions of 1–64 carts;
+rebuild retires the old ID and preserves surviving carts/cargo. The small test
+loop accepts 1–24 carts. Arbitrary ordering and longer routes remain future work.
 The implementation awaits [20-cart movement tests](TESTING.md). Default remains
 step 3 (~7.5 blocks/s), maximum step 8 (~20 blocks/s); high-speed visual curve
 rounding and spacing distortion remain known limitations. All future full-train

@@ -1,6 +1,10 @@
+$execute if data storage railway:state trains.t$(id){state:"retired"} run return 0
+$execute if data storage railway:state trains.t$(id).route run return 0
 $execute store result score #index rw.sys run data get storage railway:state trains.t$(id).carts
 execute unless score #index rw.sys matches 0..63 run return 0
 data modify storage railway:scratch cart set value {}
+execute if entity @s[type=minecraft:minecart] run data modify storage railway:scratch cart.kind set value "normal"
+execute if entity @s[type=minecraft:chest_minecart] run data modify storage railway:scratch cart.kind set value "chest"
 data modify storage railway:scratch cart.uuid set from entity @s UUID
 execute store result storage railway:scratch cart.index int 1 run scoreboard players get #index rw.sys
 $data modify storage railway:state trains.t$(id).carts append from storage railway:scratch cart
