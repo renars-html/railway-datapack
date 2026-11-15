@@ -33,12 +33,13 @@ extra containing directory, then put the ZIP in the world's `datapacks` folder.
 
 See [the backend roadmap](ROADMAP.md) for implementation milestones, the proposed
 train and route architecture, performance constraints, and acceptance gates.
-Milestone 0 now has a test fixture awaiting in-game results. Automatic route
-discovery, reservations, survival interactions, and production train registration
-have not been implemented.
+Milestone 0 has passed player tests at the initial speeds. The movement fixture
+now defaults to about 7.5 blocks/s and caps at about 20 blocks/s. Persistent train
+registration is implemented and awaits the 20-cart tests in TESTING.md. Automatic
+route discovery, reservations and survival interactions are not implemented.
 
 No dependencies, build step, or background services are required to run the pack.
-The load function initializes the `rw.dev` scoreboard and a fixed test path in
+The load function initializes registry objectives, the `rw.dev` scoreboard and a fixed test path in
 storage. Without a fixture, each tick only checks whether the fixture is enabled.
 Only explicitly tagged test entities are controlled. Existing minecarts are not
 registered or modified. Reloading pauses a registered fixture while keeping its

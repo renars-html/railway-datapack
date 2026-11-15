@@ -19,7 +19,7 @@ execute summon minecraft:marker run function railway:dev/internal/init_anchor
 execute positioned ~3 ~0.0625 ~2.5 summon minecraft:minecart run function railway:dev/internal/init_rider
 execute positioned ~3 ~0.0625 ~2.5 summon minecraft:chest_minecart run function railway:dev/internal/init_cargo
 scoreboard players set #phase rw.dev 0
-scoreboard players set #speed rw.dev 1
+scoreboard players set #speed rw.dev 3
 scoreboard players set #run rw.dev 0
 scoreboard players set #fault rw.dev 0
 scoreboard players set #gravity rw.dev 1
