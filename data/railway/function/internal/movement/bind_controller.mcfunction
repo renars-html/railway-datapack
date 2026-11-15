@@ -10,6 +10,7 @@ scoreboard players set @s rw.vel 0
 scoreboard players set @s rw.accel 50
 scoreboard players set @s rw.brake 50
 scoreboard players set @s rw.emerg 0
-scoreboard players set @s rw.cruise 3007
+scoreboard players set @s rw.cruise 7500000
+scoreboard players operation @s rw.cruise /= #speed_factor rw.sys
 scoreboard players set @s rw.signal 0
 scoreboard players set @s rw.station 0

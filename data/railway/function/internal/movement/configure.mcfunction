@@ -6,5 +6,5 @@ $scoreboard players operation @e[type=minecraft:marker,tag=railway.active,scores
 $scoreboard players operation @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.brake = #brake rw.sys
 $scoreboard players operation @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.cruise = #cruise rw.sys
 data modify storage railway:api result set value {ok:1b}
-tellraw @s {"text":"[Railway] Speed, acceleration and deceleration configured in blocks/s² (rounded to ~0.05 increments). Inspect for effective settings.","color":"aqua"}
+tellraw @s {"text":"[Railway] Speed, acceleration and deceleration configured: blocks/s; rates rounded to 0.5 and clamped to 2..5 blocks/s². Inspect for effective settings.","color":"aqua"}
 return 1

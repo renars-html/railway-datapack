@@ -1,4 +1,5 @@
 $execute unless entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run return 0
+$scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.override 0
 $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run function railway:internal/movement/ensure_motion
 $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] unless score @s rw.epoch = #epoch rw.sys run function railway:internal/movement/reload_pause with storage railway:scratch ctx
 

@@ -1,4 +1,4 @@
-data modify storage railway:api result set value {ok:0b,error:"Use speed 0.05..20 blocks/s and accel/decel numbers from 0.05 to 50 blocks/s^2 and a loaded bound train."}
+data modify storage railway:api result set value {ok:0b,error:"Use speed 0.05..20 blocks/s and accel/decel numbers from 2..5 blocks/s^2 (rounded to .5) and a loaded bound train."}
 $data modify storage railway:scratch request set value {train:$(train)}
 scoreboard players set #selected rw.sys 0
 execute store result score #selected rw.sys run data get storage railway:scratch request.train 1
@@ -17,10 +17,16 @@ scoreboard players set #accel rw.sys 0
 scoreboard players set #brake rw.sys 0
 execute store result score #accel rw.sys run data get storage railway:scratch settings.accel 1000
 execute store result score #brake rw.sys run data get storage railway:scratch settings.decel 1000
-execute unless score #accel rw.sys matches 50..50000 run return 0
-execute unless score #brake rw.sys matches 50..50000 run return 0
-scoreboard players add #accel rw.sys 25
-scoreboard players add #brake rw.sys 25
+execute if score #accel rw.sys matches ..1999 run scoreboard players set #accel rw.sys 2000
+execute if score #brake rw.sys matches ..1999 run scoreboard players set #brake rw.sys 2000
+execute if score #accel rw.sys matches 5001.. run scoreboard players set #accel rw.sys 5000
+execute if score #brake rw.sys matches 5001.. run scoreboard players set #brake rw.sys 5000
+scoreboard players add #accel rw.sys 250
+scoreboard players add #brake rw.sys 250
+scoreboard players operation #accel rw.sys /= #fivehundred rw.sys
+scoreboard players operation #brake rw.sys /= #fivehundred rw.sys
+scoreboard players operation #accel rw.sys *= #fivehundred rw.sys
+scoreboard players operation #brake rw.sys *= #fivehundred rw.sys
 scoreboard players operation #accel rw.sys /= #fifty rw.sys
 scoreboard players operation #brake rw.sys /= #fifty rw.sys
 return run function railway:internal/movement/configure with storage railway:scratch ctx

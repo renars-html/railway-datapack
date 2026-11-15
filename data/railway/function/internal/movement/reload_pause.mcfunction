@@ -1,3 +1,4 @@
+scoreboard players set @s rw.override 0
 scoreboard players set @s rw.vel 0
 scoreboard players set @s rw.run 0
 scoreboard players operation @s rw.epoch = #epoch rw.sys

@@ -9,8 +9,11 @@ execute if score #occupied rw.dev matches 1 run return 0
 execute store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] Missing carts or UUID/index mismatch. Binding refused.","color":"red"}
 execute unless score #valid rw.sys matches 1 run return 0
-execute unless score #expected rw.sys matches 1..24 run tellraw @s {"text":"[Railway] This loop fits 1 to 24 carts at the configured spacing; longer trains need a longer route.","color":"red"}
-execute unless score #expected rw.sys matches 1..24 run return 0
+execute unless score #expected rw.sys matches 1..64 run tellraw @s {"text":"[Railway] This train does not fit the selected loop.","color":"red"}
+execute unless score #expected rw.sys matches 1..64 run return 0
+scoreboard players operation #footprint rw.sys = #expected rw.sys
+scoreboard players operation #footprint rw.sys *= #offset rw.dev
+execute if score #footprint rw.sys > #length rw.dev run return 0
 scoreboard players set #controllers rw.sys 0
 $execute as @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] run scoreboard players add #controllers rw.sys 1
 execute unless score #controllers rw.sys matches 1 run return 0

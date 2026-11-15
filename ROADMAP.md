@@ -1,14 +1,15 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player reports smooth/customizable motion passed in singleplayer.
-Default acceleration and deceleration are now both ~2.5 blocks/s². Cruise speed
-is configured in blocks/s (default 7.5, cap ~20), with fine fixed-point resolution
-rather than user-visible steps. Start resumes an emergency stop without a separate
-release operation. Milestone 3 now includes a discrete braking-distance station
-approach, exact stop target, dwell/departure and an independent signal stop reason,
-awaiting [cycle 7 tests](TESTING.md). Server/disconnect recovery remains unverified.
-All full-train acceptance tests continue to use 20 carts.
+Status: station braking is repeatable in singleplayer within the player's
+estimated ±1 block, but head-based raw targets were confusing. Signal gating and
+reload persistence passed. New work adds saved, visible **train-center** station
+marks, a ~200-block generated loop, and an explicit emergency-start override;
+these await [cycle 8 tests](TESTING.md). Normal start/stop remain operational
+controls. Emergency start/stop are manual recovery tools. Accel/decel round to
+0.5 and clamp to 2–5 blocks/s². Default speed remains 7.5, maximum ~20 blocks/s.
+Tests require 20 carts; the large loop additionally supports up to 64. Multiplayer
+and dedicated-server recovery remain unverified.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -55,6 +56,11 @@ exit directions. A curve follows the actual rail geometry; interpolating directl
 between block centers would cut corners. Slopes need tested height offsets and
 orientations. Keep runtime progress as bounded, segment-local fixed-point integers
 to avoid overflowing scoreboard values far from spawn or on long journeys.
+
+Emergency start immediately selects maximum speed, bypasses operational holds
+and cancels a station plan for manual recovery. It moves only loaded UUID-verified
+members; it cannot move missing carts. Normal start/stop exits override and
+restores normal rules, while emergency stop and reload cancel it immediately.
 
 Advance the train once per tick. Each cart has a fixed distance behind the train
 reference point and its own cached segment cursor. Evaluate its position on the
@@ -103,7 +109,14 @@ crossed in a tick, and cap speed to the validated movement/clearance budget.
    Keep the frontier, predecessors, and reconstruction in a persistent job so
    large searches span ticks. Cap graph size, work per tick, and queue length.
 5. Compile the result into ordered segment references, cumulative lengths,
-   station stops, conflict sections, and required junction settings. Publish only
+   fixed station-center targets, following-block occupancy boundaries, conflict
+   sections, and required junction settings. Precompute station/signal braking
+   entry points for deceleration profiles 2, 2.5, 3, 3.5, 4, 4.5 and 5 blocks/s²
+   at the route cruise speeds. Cache departure/acceleration profiles likewise;
+   share those tables across trains. Include profile/speed in the cache key,
+   generating a missing profile once when configuration changes. Train-length
+   offsets remain per-consist arithmetic, not a duplicate route. The dynamic
+   safe-speed solver is the temporary test implementation until compilation. Publish only
    a complete, validated route. Failed/cancelled jobs never expose partial routes.
 6. Every train references the same immutable route ID and revision. Keep only
    per-train progress, speed, cart cursors, and reservation state separately.
@@ -123,9 +136,15 @@ rebuild. Immediate detection of every edit anywhere is not a backend guarantee.
 
 ## Stations, signals, and shared track
 
-Stations add a stop target and dwell timer to the existing stop system. A signal
-is initially the result of the backend reservation check; physical signal blocks
-come later. Reserve physical conflict sections so routes in opposite directions
+Stations store a player-selected route position for the **center of the train**
+(midpoint along its path, not the head or an axis-aligned bounding box). Convert
+that to a head target using the ordered consist length; repeated approaches must
+stop the same center at the same marker. Stations add a stop target and dwell
+timer to the existing stop system. A signal is a station-like stopping boundary: stop only when its following
+track block/conflict section is occupied or unavailable. Following-block occupancy
+and boundaries are compiled at route creation, with tail-clear release. An
+operator boolean is the current test adapter; physical signal interaction comes
+after the backend. Emergency override may deliberately bypass these conditions. Reserve physical conflict sections so routes in opposite directions
 still contend for the same track. Include crossing and junction conflicts.
 
 Before entering a conflict area, atomically acquire the complete next safe
@@ -226,11 +245,13 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify exact station arrivals, dwell/departure, independent signal/manual
-holds and persistence on the existing 20-cart train. Then begin registered station
-and waypoint graph construction and reusable route compilation. Physical signals,
-reservations and chunk-boundary safety remain separate later gates. Multiplayer
-recovery must be tested when a server becomes available.
+Next: verify stable marked center stops and the explicit recovery override on
+the larger loop. Then prioritize a generated test network graph and route compiler
+with stations/waypoints, shared profile-specific braking points, and following-block
+boundaries. Add occupancy/reservations and conditional signal approaches after
+route compilation. Complete backend behavior before manual rail-building/discovery
+adapters and survival interactions. Server/disconnect recovery is a separate
+validation gate when multiplayer testing becomes available.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

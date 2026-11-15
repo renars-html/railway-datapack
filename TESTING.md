@@ -1,112 +1,115 @@
-# Test cycle 7: physical speed settings, station braking and independent holds
+# Test cycle 8: large loop, center stations and recovery override
 
-The player reports cycle 6 passed in singleplayer, including ramps, settings,
-service/emergency stops, reload, and quitting/reopening while riding. Multiplayer
-specific recovery remains unverified and is not required for this cycle.
+The previous signal/manual holds and reload persistence passed in singleplayer.
+The player observed station stopping within roughly ±1 block and confusing apparent
+station placement. Saved markers now explicitly target the train's **path midpoint**,
+not its head. Check the two middle carts of a 20-cart train, rather than the front.
 
-Replace the old datapack folder with this version (rather than merging files,
-so removed functions disappear), then `/reload` near the existing 20-cart train.
-No rebuilding is required. Replace `ID` below with its numeric train ID.
+Replace the datapack folder and `/reload`; keep the existing train and fixtures.
+Use simulation distance **8 chunks or higher** for this larger loaded-area test.
+No dedicated server is required. Replace ID in commands with your train's number.
 
-## Configuration changes included in this cycle
+## Build a realistic-size fixture
 
-```mcfunction
-/function railway:api/train/configure_motion {train:ID,speed:7.5,accel:2.5,decel:2.5}
-```
-
-Speed is now **blocks/second**, from 0.05 to 20. Accel/decel remain independently
-configurable in blocks/s² from 0.05 to 50. Supply all three fields. Defaults for
-newly bound trains are 7.5/2.5/2.5. Existing configured rates are preserved, so use
-the command above to set the new defaults on your existing train. Physical speed
-is rounded to the nearest available fixed-point resolution (~0.0025 blocks/s);
-inspection prints the effective speed. `fast`/`slow` functions are removed.
-
-`emergency_stop` remains an immediate stop. `start` now resumes it directly,
-clearing the emergency/manual request but respecting faults, station dwell and
-blocked signals. The separate emergency-release function is removed. Confirm
-these changes with one start/stop/emergency cycle; a normal stop from 7.5 blocks/s
-now takes about 3 seconds with decel 2.5. Default acceleration still takes 3 seconds.
-
-## New station approach test
-
-1. Stop and wait until stationary. Apply the settings above, then arm a station:
+1. Stop and wait until stationary, then dismount. Choose empty flat space adjacent
+   to the old loop, keeping it and all registered members loaded. Run:
 
    ```mcfunction
-   /function railway:api/train/station_stop {train:ID,sample:0,dwell:100}
+   /function railway:dev/large_loop
+   ```
+
+   **This overwrites a 76×36×6 volume at your feet**, extending +X/+Z. The new loop
+   is **199.657 blocks**, about five times the old 39.657. It includes straights,
+   curves, a hill and powered rails. A bound train is relocated and held without
+   replacing its carts or cargo; the old rails remain. If there is no bound train,
+   use `dev/long_train {train:ID}` afterwards. The new loop fits **up to 64 carts**;
+   use 20 for the required tests. A return of 0 means the original fixture/train
+   is not loaded, is still moving, has missing members, or has a rider.
+2. Apply the normal operating profile:
+
+   ```mcfunction
+   /function railway:api/train/configure_motion {train:ID,speed:7.5,accel:2.5,decel:2.5}
    /function railway:api/train/start {train:ID}
    ```
 
-   `sample` is an integer 0–317 on this test loop; 0 is the original head-cart
-   starting point on the north straight. `dwell` is 1–12000 ticks (100 = 5 seconds).
-   It selects the next occurrence ahead, including a full lap if already at 0.
-2. Expect controlled acceleration and braking, **exact arrival at sample 0**, a
-   5-second hold, then acceleration/departure automatically. Inspect during dwell:
-   state `dwelling`, progress sample 0, speed 0 and station distance 0. Check the
-   middle/rear carts maintain spacing. Repeat the station command after departure
-   to verify the head stops at the same location again.
-3. After finishing that stop, repeat from rest with speed 20, accel/decel 2.5.
-   The approach may deliberately never reach 20: the loop is only ~40 blocks and
-   braking from 20 with decel 2.5 needs ~80 blocks. Reaching the stop safely is
-   the expected behavior. Changing settings during an armed stop/dwell is refused.
-4. After departure, a station request made too close at high speed should return
-   0 with an explanatory message, leaving movement unchanged. Do not require an
-   arbitrary request to succeed: normal braking distance must be available.
+   Ride three laps and stop/restart. Watch spacing, corner behavior, rider/cargo
+   retention and any slowdown. Inspect speed values. Accel/decel now round to
+   the nearest **0.5** and clamp between **2 and 5 blocks/s²**; e.g. 1 becomes 2,
+   3.2 becomes 3, 3.3 becomes 3.5, and 8 becomes 5. Default rates are still 2.5.
 
-This is a backend stop target, not a station block or saved route yet. Only one
-stop may be armed at a time. Track changes/chunk-boundary safety remain later work.
+## Pick a stable station location
 
-## Independent signal/manual stop test
+1. Stop the train. Stand on or next to a **long straight section** where you want
+   the **center of the train** to stop, and run:
 
-```mcfunction
-/function railway:api/train/set_signal {train:ID,blocked:1}
-```
+   ```mcfunction
+   /function railway:dev/station_here {station:1}
+   ```
 
-The train should service-brake and hold. `start` must not override the blocked
-signal. Clear it with `blocked:0`: it should resume if a start request is active.
-Repeat, but issue `stop` while waiting at the signal; clearing the signal must
-leave it held until `start`. Repeat with `emergency_stop`, then `start` while
-blocked: it must stay held until the signal clears. Clearing an already-clear
-signal must not release a manual stop.
+   Wait for the saved message and repeating end-rod particle marker (~1.3 seconds
+   on the large loop). The closest point of the stored path is selected, with
+   roughly 0.125-block sampling resolution. Station IDs are integers 1–64.
+2. Request that marked station, then start if currently held:
 
-For a station/signal combination, arm sample 0 from rest, start, block/clear the
-signal en route, and check the remaining station distance is preserved. It should
-still stop exactly at 0. A signal left blocked through station departure must
-prevent departure after the dwell expires. Do not request another station until
-the current dwell finishes.
+   ```mcfunction
+   /function railway:api/train/station_stop {train:ID,station:1,dwell:100}
+   /function railway:api/train/start {train:ID}
+   ```
 
-## Persistence and report
+   Expect the midpoint between carts **9 and 10** (indices 0–19) to line up with
+   the marker along the track, a 5-second dwell, then departure. Inspect should
+   show distance 0 while dwelling. The head is about **15.4 blocks beyond** the
+   center marker; this is intentional. Marker and head progress samples differ.
+3. Repeat after departing and again from another location/speed. The **same train
+   center** should stop at the **same marker**, even though travel time differs.
+   If the nearest pass is too close for normal braking, it skips to the next lap
+   rather than rejecting or abruptly stopping. At rest, a nearby station can
+   legitimately require only a short trip; the marked location must remain fixed.
+4. Repeat with speed 20 and decel profiles 2, 2.5 and 5 (configure only after the
+   previous dwell completes). Mark a second station on another straight with
+   `station:2` and test it. Report center error relative to the marker and whether
+   repeated stops drift. Test signal holds and reload/quit persistence during an
+   approach as before. Center means midpoint **along the route**, not a bounding
+   box midpoint when the train bends around corners.
 
-Reload and quit/reopen during an armed approach and during a signal hold. The
-train should immediately pause, preserve settings, target distance, membership,
-passenger and cargo, then continue appropriately after `start`; a blocked signal
-must remain blocked. Station dwell time is counted only while the controller is
-loaded/ticking. Reload never automatically restarts the train.
+`station_stop` now takes a saved **station ID**, replacing the old raw `sample`
+argument. A marker is tied to its route revision. Running large_loop again moves
+and rebuilds the geometry, invalidates prior station marks, cancels an armed stop,
+and holds the train; place fresh station marks afterwards. Reload preserves the
+current loop profile, stations and valid approach/dwell state.
 
-Report configuration changes, exact/repeated station arrival, dwell/departure,
-independent holds, reload persistence, and any spacing/jitter issues at 7.5 or
-20 blocks/s. No separate repeat of every previous test is needed.
-
-## Existing composition commands
-
-In Creative on clear flat ground:
+## Emergency recovery override
 
 ```mcfunction
-/function railway:api/train/spawn {normal:19,chest:1}
-/function railway:api/train/rebuild {train:ID,normal:18,chest:2}
-/function railway:dev/long_train {train:ID}
+/function railway:api/train/emergency_start {train:ID}
 ```
 
-Spawn/rebuild support 1–64 carts, grouped normal then chest. Rebuild retires the
-old ID and returns a new ID; loaded surviving carts/cargo are parked separately,
-not deleted. Replacement chests are empty. Reserve 16×36 blocks along +X/+Z for
-rebuilding. Stop and dismount first. Loop binding supports 1–24 carts; larger
-trains need a longer route. All acceptance movement tests still use 20 carts.
+Expect an **immediate jump to maximum speed (~20 blocks/s)**, bypassing normal
+acceleration, manual/signal holds, emergency stop and station dwell/approach. The
+station plan is cancelled; the signal's stored blocked state is retained but
+ignored during override. Inspect shows `override:1`.
 
-## Implementation notes
+Test with a blocked signal and during dwell. `api/train/stop` exits override and
+service-brakes; `api/train/start` exits override and restores normal rules, so a
+still-blocked signal brakes/holds the train again. `emergency_stop` always exits
+it and stops immediately. Reload and quit/reopen also cancel override and pause.
 
-Progress uses 1/1000 sample with interpolation. Station approach limits velocity
-using exact discrete stopping distance and a bounded 13-iteration binary search.
-Arrival consumes the remaining path distance exactly; emergency/fault/reload
-holds preserve that distance. Manual, signal, station and integrity conditions
-are independent. This is not yet physical signal blocks, shared-track reservation,
-track-edit validation or arbitrary route creation. Remain near the loop.
+This deliberately allows the **remaining valid members** of a damaged train to
+move for recovery. It never invents missing carts, loads chunks or moves an entity
+whose UUID fails the stored membership check. Do not destroy cargo to test this;
+an optional test may remove one empty cart, run override, then emergency-stop and
+use rebuild to repair the composition.
+
+## Report and limitations
+
+Report large-loop movement, repeated **center-marker** stopping error at each
+rate, override/normal control transitions, signal behavior and persistence. No
+need to repeat unaffected spawning/composition tests. Optional: run a 64-cart
+composition on the large loop after the 20-cart tests and report performance.
+
+The track remains generated geometry, not a scan of physical rails. Manual rail
+edits do not reroute trains. Route graph compilation and profile-specific cached
+braking points come next; the current stop planner calculates the discrete safe
+approach dynamically. Following-block occupancy/reservations are not implemented:
+`set_signal` is still an operator-supplied backend condition. Stay near the loop;
+chunk-boundary safety and arbitrary block-change detection remain future gates.

@@ -14,7 +14,9 @@ Replacing the folder removes obsolete functions when APIs change. A ZIP with
 
 Persistent train IDs, owner/controller/cart UUID records, ordered membership,
 count-based compositions of 1–64 normal/chest carts, and a 20-cart movement test.
-The existing ~40-block test loop fits 1–24 carts; it supports fractional movement,
+The small ~40-block test loop fits 1–24 carts; `dev/large_loop` builds a ~200-block
+loop fitting up to 64. Both use generated stored geometry; physical rail edits
+do not change a route. The backend it supports fractional movement,
 configurable physical speed/acceleration/deceleration, service and emergency
 stops, planned station braking/dwell, and independent signal holds. Singleplayer
 reload and quit/reopen behavior has passed earlier cycles. New station behavior
@@ -42,3 +44,10 @@ names (`function`, `tags/function`). Automatic track discovery, physical station
 signals, reservations, and the survival interface are not implemented yet.
 
 Version reference: [official Java 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3).
+
+`dev/station_here {station:1}` saves the nearest stored path point as a visible
+train-center station. Use `station_stop {train:ID,station:1,dwell:100}`. Accel/decel
+profiles round to 0.5 between 2 and 5 blocks/s². `emergency_start {train:ID}` jumps
+to maximum speed and bypasses operational holds; normal start/stop restores normal
+rules. `emergency_stop` cancels override immediately. See TESTING.md for the
+large-loop build footprint and current backend limitations.
