@@ -35,7 +35,8 @@ See [the backend roadmap](ROADMAP.md) for implementation milestones, the propose
 train and route architecture, performance constraints, and acceptance gates.
 Milestone 0 has passed player tests at the initial speeds. The movement fixture
 now defaults to about 7.5 blocks/s and caps at about 20 blocks/s. Persistent train
-registration is implemented and awaits the 20-cart tests in TESTING.md. Automatic
+registration now drives a 20-cart movement prototype awaiting the tests in
+TESTING.md. Automatic
 route discovery, reservations and survival interactions are not implemented.
 
 No dependencies, build step, or background services are required to run the pack.
@@ -61,3 +62,7 @@ Final loading and command validation requires Minecraft Java Edition 26.3.
 
 Version reference: [Minecraft version metadata](https://github.com/misode/mcmeta/blob/summary/versions/data.json)
 (entry `26.3`, datapack version `121.0`).
+
+The registered 20-cart movement test uses `railway:dev/long_train {train:ID}`
+and per-train `railway:api/train/start`, `stop`, `fast`, and `slow` controls.
+Follow TESTING.md before binding; it replaces the original fixture controls.

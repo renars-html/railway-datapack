@@ -1,2 +1,3 @@
+execute if data storage railway:dev loop_train run return run tellraw @s {"text":"[Railway] This loop is bound to a registered train. Use api/train/start, stop, fast, slow with {train:ID}.","color":"yellow"}
 execute in minecraft:overworld unless entity @e[type=minecraft:marker,tag=railway.dev.anchor] run return run tellraw @s {"text": "[Railway test] No loaded fixture. Return to its location, or run dev/setup in an empty Creative test area.", "color": "aqua"}
 execute in minecraft:overworld at @e[type=minecraft:marker,tag=railway.dev.anchor,limit=1] run function railway:dev/internal/control/start

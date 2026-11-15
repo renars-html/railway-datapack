@@ -1,80 +1,76 @@
-# Test cycle 4: speed limits and persistent 20-cart registration
+# Test cycle 5: registered 20-cart movement
 
-The player reported closer spacing works at the original test speeds. Speed
-stress testing found visible spacing distortion after curves around 17.5 blocks/s
-and corner rounding around 20 blocks/s. These remain known visual limitations;
-no smoothing fix is claimed. For now the maximum is **step 8 = 19.953 blocks/s**
-and the default for a new fixture is **step 3 = 7.482 blocks/s**, at 20 TPS.
-Reload preserves a valid current speed (1–8); an out-of-range speed resets to 3.
+Train inspection now prints the expected information, confirmed by the player.
+This cycle connects persistent membership to the existing movement path. It does
+not add pathfinding, collision protection, reservations, or survival controls.
 
-## Existing movement fixture
+## Setup
 
-Update the pack and `/reload` nearby. No rebuild is needed. Run `dev/status`.
-If it retained a speed other than 3, use `dev/slow` or `dev/fast` until it reads 3.
-Check `dev/fast` stops at 8 and `dev/slow` stops at 1. Start/stop should still work.
-The movement fixture still contains two carts: this cycle's twenty-cart test
-checks registration, not twenty-cart movement. The current clear gap remains
-about 0.641 blocks on straights (1.621 blocks between centers).
-
-All names here are invoked as `/function railway:<name>`.
-
-## New registry test
-
-1. In the same Creative Overworld, stand on empty flat ground at least 30 blocks
-   from the rail fixture. Reserve a clear 10×10 area. Run:
+1. Update and `/reload`. Return to the existing rail loop with the original
+   two-cart fixture still present. Ensure the 20 registered carts from the grid
+   are also loaded (stay within simulation distance of both). Dismount all carts.
+2. Use the ID of the **20-cart train**, not the empty second train:
 
    ```mcfunction
-   /function railway:dev/registry_setup
+   /function railway:dev/long_train {train:ID}
    ```
 
-   It spawns **20 carts** (19 ordinary, one chest cart) and a persistent controller
-   marker, without changing blocks. The chest contains 7 diamonds and 11 cobblestone.
-   Note the train ID printed in chat. The helper is intentionally single-use;
-   do not delete test carts yet.
-2. Inspect that train using its printed ID (replace `1` below if different):
+   Replace `ID` with its integer value. Expect 20 carts to form one held train
+   around the loop. The original two fixture carts and their cargo are parked
+   inside the loop. This binding is single-use and changes no blocks. It refuses
+   missing carts, incorrect membership, passengers, or a train of another length.
 
-   ```mcfunction
-   /function railway:api/train/inspect {train:1}
-   ```
+## Tests
 
-   Expect `ok:1b`, `loaded_carts:20`, `state:"unassigned"`, one owner UUID, one
-   controller UUID, and **20 distinct cart UUIDs with indices 0 through 19**.
-   The carts have no route or movement controller yet; ordinary pushing/gravity
-   still applies. Movement and complete loading reconciliation are later gates.
-3. Run `/reload` and inspect again. Save/quit and reopen (or restart the server),
-   return to this area and inspect once more. Expect the **same ID, owner,
-   controller UUID, ordered cart UUIDs and cargo**, and 20 loaded carts nearby.
-4. Try attaching an already registered test cart again:
+All train controls below require `{train:ID}` with that same numeric ID.
 
-   ```mcfunction
-   /execute as @e[type=minecraft:minecart,tag=railway.registry_test,limit=1] at @s run function railway:api/train/attach {train:1}
-   /data get storage railway:api result
-   ```
+- **Movement:** board the head cart on the north rail, then run
+  `/function railway:api/train/start {train:ID}`. Ride at least three laps at the
+  default step **3 (~7.5 blocks/s)**. Check all 20 carts, not only the first pair:
+  stable order/spacing, no lost carts, rider ejections, pileups, or accumulating
+  errors through the hill, curves and powered rail.
+- **Hold:** `/function railway:api/train/stop {train:ID}` should hold every cart.
+  Wait 10 seconds, then start again. Repeat with the head on the slope. Boarding
+  another cart while stopped must work; try a middle and rear cart for one lap.
+- **Speed:** `api/train/fast` and `api/train/slow` with the same argument adjust
+  this train alone, between steps 1 and 8. Test three laps at **8 (~20 blocks/s)**,
+  then restore 3. Known curve rounding and temporary visual spacing distortion
+  at higher speeds remain; report whether a long train makes them worse.
+- **Reload/restart:** while riding, `/reload` should pause the entire train in
+  place without ejecting you. Start should resume it at the same speed and
+  progress. Repeat after world/server restart. Inspect the train before/after:
+  same 20 member UUIDs/order, controller UUID, and cargo (7 diamonds/11 cobblestone).
+- **Independence:** inspect the second empty train. It should remain unassigned
+  with zero carts. Its start command must fail without moving anything.
 
-   Expect `ok:0b`. Inspect again: still 20 entries, with no duplicated member.
-5. Run `/function railway:api/train/create` to create a second, empty train.
-   Its ID must be greater than the first. Inspect it: zero carts and a different
-   controller UUID. Reinspect the first: still 20, unchanged. Inspect ID `-1` or
-   an unused positive ID: expect `ok:0b` and no changes to either train.
+`/function railway:api/train/inspect {train:ID}` now also shows speed step and
+progress sample for a bound train. Inspect should show state `running` after
+start and `stopped` after stop/reload, and 20 registered/loaded carts nearby.
 
-Report command errors, the two train IDs, counts before/after reload and restart,
-any UUID/index changes, duplicate-attach result, and cargo contents. Also confirm
-speed step 8 cannot be exceeded. This is the next in-game gate before connecting
-persistent registration to twenty-cart movement.
+Report pass/fail for each test, the train ID, any cart index/track location where
+problems appear, whether speed makes them worse, and any obvious server slowdown.
+If there are command errors, include their exact text and relevant latest.log
+function-loading errors. Leave the fixtures in place for the next cycle.
 
-## Backend interfaces and limits
+## Backend notes
 
-`api/train/create` runs as an Overworld player, allocates a monotonic ID, records
-its owner's UUID, and creates a tagged marker. `api/train/attach {train:N}` runs
-as the **explicit cart entity**, with `at @s`, and records its UUID/index. Only
-ordinary and chest minecarts are accepted, with a current bound of 64 per train.
-The two movement-fixture carts cannot be attached to this registry. A registered
-cart cannot be attached twice or to another train. `inspect` reads persistent
-membership and counts loaded, tagged carts in the Overworld; an unloaded cart
-remains registered and is never respawned by inspection.
+One registered marker controls speed, shared progress, and 20 fixed cart offsets
+of 13 samples (1.621 path blocks between centers). The loop is 318 samples long,
+so this train fits without lapping itself. Each registered UUID and index is
+checked before advancement; invalid entities are never moved as replacements.
+A fault holds the remaining valid carts at their last shared progress. Explicit
+start is required after recovery. Reload epochs also pause controllers that were
+unloaded during reload on their first subsequent tick.
 
-These APIs are operator-only backend entry points. Owner identity is stored;
-player-facing ownership enforcement, detach/remove, route assignment, bounded
-recovery jobs and movement are not implemented yet. No controller or cargo is
-respawned automatically. Do not treat loaded-tag counts as a completed UUID-based
-reconciliation system. No per-train work is added to the tick function yet.
+Binding uses the test route `dev_loop` and disables the original two-cart tick.
+Old `dev/start`, speed, gravity, reposition and cleanup commands are blocked while
+bound; use the new per-train API controls. Controllers stay active while stopped
+so the carts remain held. `dev/status` still describes the original fixture;
+use train inspection for the long train. The existing singleton loop accepts one
+registered train; independent track placement and reservations are later work.
+
+This is still a loaded-area movement prototype. Keep the entire loop nearby.
+Block readability/entity-ticking boundaries, arbitrary track edits, safe movement
+across unavailable chunks, braking curves, automatic station stops, removal and
+ownership enforcement are not implemented. No force loading or automatic cart
+respawning is used. Owner identities remain stored for future survival access.

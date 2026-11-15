@@ -1,13 +1,13 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: milestone 0 accepted provisionally at default step 3 (~7.5 blocks/s),
-with maximum step 8 (~20 blocks/s). Curve spacing distortion appears around
-17.5 blocks/s and corner rounding around 20 blocks/s; smoothing remains future
-movement work. Milestone 1 persistent IDs, owner/controller/cart UUID records,
-ordered membership, duplicate rejection and inspection are implemented and await
-[the 20-cart registry tests](TESTING.md). Production movement is not implemented.
-All future full-train movement tests must include at least 20 carts.
+Status: registry inspection has been confirmed in-game. Milestone 2 now binds
+20 persistent cart members to the test loop through a registered train controller,
+with per-train start/stop/speed, UUID/index validation, and reload pause epochs.
+The implementation awaits [20-cart movement tests](TESTING.md). Default remains
+step 3 (~7.5 blocks/s), maximum step 8 (~20 blocks/s); high-speed visual curve
+rounding and spacing distortion remain known limitations. All future full-train
+movement tests include at least 20 carts.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -219,11 +219,10 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify 20-cart registration across reload/restart and independent train
-IDs. Then complete lifecycle/recovery as needed and connect the persistent train
-records to movement along the test path, testing 20 carts as well as short trains.
-Retain the 7.5 blocks/s default and 20 blocks/s cap while investigating interpolation
-at curves. Route discovery and the survival interface follow those gates.
+Next: verify the registered 20-cart train through movement, holding, per-train
+controls and reload/restart. Resolve any long-train issues before adding braking,
+stop reasons and station targets. Automatic graph discovery, route compilation,
+chunk-boundary safety and the survival interface remain later gates.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

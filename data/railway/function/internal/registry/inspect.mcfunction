@@ -11,4 +11,5 @@ tellraw @s [{"text":"[Railway] Dimension: "},{"type":"nbt","source":"storage","s
 tellraw @s [{"text":"[Railway] Owner UUID: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.record.owner","interpret":false}]
 tellraw @s [{"text":"[Railway] Controller UUID: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.record.controller","interpret":false}]
 tellraw @s [{"text":"[Railway] Ordered carts (UUID/index): "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.record.carts","interpret":false}]
+function railway:internal/movement/inspect with storage railway:scratch ctx
 return 1

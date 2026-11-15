@@ -18,3 +18,4 @@ scoreboard players set #run rw.dev 0
 scoreboard players set #enabled rw.dev 0
 execute if data storage railway:dev fixture.registered run scoreboard players set #enabled rw.dev 1
 function railway:dev/internal/path_load
+execute if data storage railway:dev loop_train run scoreboard players set #enabled rw.dev 0
