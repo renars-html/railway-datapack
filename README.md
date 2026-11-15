@@ -1,18 +1,21 @@
 # Railway datapack
 
-An empty datapack for **Minecraft Java Edition 26.3**, using datapack format
-**121.0**. No commands run automatically and no gameplay behavior is included.
+A datapack in development for **Minecraft Java Edition 26.3**, using datapack
+format **121.0**. The first implementation is an opt-in movement test fixture,
+not yet a survival train system. See [TESTING.md](TESTING.md) for this test cycle.
 
 ## Structure
 
 ```text
 pack.mcmeta                    Pack metadata and supported format
-data/railway/function/         Future .mcfunction files in the railway namespace
+data/minecraft/tags/function/  Load/tick entry points
+data/railway/function/         Runtime and operator-only movement fixture
+ROADMAP.md                     Backend plan (ignored by Minecraft)
+TESTING.md                     Current test cycle (ignored by Minecraft)
 ```
 
-The `.gitkeep` file preserves the empty function directory in Git; Minecraft
-ignores it. Use singular directory names such as `function`, `recipe`, and
-`advancement` when adding content.
+Use singular directory names such as `function`, `recipe`, and `advancement`.
+Markdown documentation and `.gitkeep` files are ignored by Minecraft.
 
 ## Install
 
@@ -28,10 +31,24 @@ extra containing directory, then put the ZIP in the world's `datapacks` folder.
 
 ## Development
 
-No dependencies, build step, or background services are required. Add functions
-under `data/railway/function/`; a file named `example.mcfunction` can be invoked
-with `/function railway:example` after `/reload`. No example function ships with
-this empty pack.
+See [the backend roadmap](ROADMAP.md) for implementation milestones, the proposed
+train and route architecture, performance constraints, and acceptance gates.
+Milestone 0 now has a test fixture awaiting in-game results. Automatic route
+discovery, reservations, survival interactions, and production train registration
+have not been implemented.
+
+No dependencies, build step, or background services are required to run the pack.
+The load function initializes the `rw.dev` scoreboard and a fixed test path in
+storage. Without a fixture, each tick only checks whether the fixture is enabled.
+Only explicitly tagged test entities are controlled. Existing minecarts are not
+registered or modified. Reloading pauses a registered fixture while keeping its
+position; `/function railway:dev/start` resumes it.
+
+The fixture is a single global Overworld test rig. It requires a Creative player
+to create it. Setup replaces a 16×16×6 volume at the player's feet, so use a
+disposable test world. Cleanup removes its carts and test inventory, and leaves
+the platform and rails in place. This is a test harness, not the final chunk
+loading or multiplayer recovery implementation.
 
 Validate the metadata locally with:
 

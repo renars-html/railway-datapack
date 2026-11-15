@@ -1,0 +1,225 @@
+# Railway backend roadmap
+
+Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
+Status: milestone 0 fixture implemented; awaiting the player tests in
+[TESTING.md](TESTING.md). Production train control is not implemented yet.
+
+Build a command-driven backend first. Crafting, coupling tools, station blocks,
+player menus, redstone interfaces, and survival costs come after the backend
+passes the milestones below. Use real minecart entities and ordinary rail tracks.
+Initially support routes inside one dimension, forward travel, and an explicitly
+limited set of rail configurations. Expand that set through tested milestones.
+
+## Roadmap and acceptance gates
+
+| Order | Milestone | Backend work | Done when |
+| --- | --- | --- | --- |
+| 0 | Verify movement on 26.3 | Test command-controlled empty and occupied carts, retained passengers, gravity, collision, slopes, curves, stop holding, and entity loading. Test vanilla minecart behavior with the world's actual settings. | A passenger can ride a controlled cart through the supported geometry without dismounts, persistent drift, or unacceptable jitter. Record the supported settings and geometry before implementing the rest. |
+| 1 | Core runtime | Add idempotent load/tick entry points, persistent IDs, train/cart registration, configuration, bounded job processing, diagnostics, and schema versioning. | Reloading preserves registrations and state; two registered trains have independent IDs and data. Unregistered minecarts are untouched. |
+| 2 | One working train | Use a manually registered short test path; create one train controller, ordered cart membership, distance-based spacing, and a shared speed/progress update. | Three carts follow the same path through straights, curves, and slopes with stable spacing during acceleration and braking. Cargo and passenger tests pass. |
+| 3 | Stop and start | Add start, service stop, emergency stop, stop reasons, target speed, acceleration/braking limits, and stationary holding. | Every cart stops as one train, stays stopped on supported slopes and powered rails, and resumes without spacing changes. Removing one stop reason cannot override another. |
+| 4 | Track graph and reusable routes | Register stations/waypoints, discover track in bounded jobs, build a directed graph, run creation-time pathfinding, and publish versioned shared routes. | Two trains use the same completed route without running pathfinding while travelling. Ordered waypoints, unreachable destinations, and explicit route rebuilding work. |
+| 5 | Stations and traffic control | Add station stop positions, dwell timers, conflict sections, reservations, junction locks, and signal-derived stop reasons. | Opposing trains cannot enter the same reserved conflict section. A junction remains locked until the final cart clears it. Trains stop accurately at stations. |
+| 6 | Multiplayer reliability and performance | Handle partial chunk loading, reload/restart reconciliation, broken track, missing carts, concurrent requests, ownership, and profiling. | Recovery never duplicates a cart or frees an occupied section merely because it unloaded. Measured operating limits and repeatable server benchmarks are documented. |
+| 7 | Survival interaction layer | Connect survival interactions to the proven function API; add recipes, costs, permissions, feedback, and cleanup rules. | Players can create trains and routes without operator commands while the backend retains the same validation and limits. |
+
+Each gate must pass before dependent features are considered complete. Reliability
+and performance constraints apply throughout, even though milestone 6 tests them
+together under load.
+
+## Movement and train control
+
+### Proposed movement backend
+
+Use one authoritative controller per train, rather than independent cart AI.
+The first candidate is command-controlled movement of real carts along a stored
+rail path. Keep the movement operations behind internal functions so milestone 0
+can change their implementation without changing routes or station logic.
+
+Teleportation, velocity writes, gravity control, and collision behavior must be
+tested together on 26.3. Moving a ridden minecart through commands must preserve
+its passengers and inventories. Do not assume that setting Motion to zero once
+will hold a cart, or that NoGravity disables rail propulsion or collision.
+Do not use visual display entities as a substitute for working minecarts.
+If the candidate fails the rider or physics gate, investigate a vanilla-motion
+backend with path tracking and measured coupling correction before proceeding.
+
+Represent the rail path as directed geometric segments with lengths and entry/
+exit directions. A curve follows the actual rail geometry; interpolating directly
+between block centers would cut corners. Slopes need tested height offsets and
+orientations. Keep runtime progress as bounded, segment-local fixed-point integers
+to avoid overflowing scoreboard values far from spawn or on long journeys.
+
+Advance the train once per tick. Each cart has a fixed distance behind the train
+reference point and its own cached segment cursor. Evaluate its position on the
+same path at that distance. This preserves spacing through speed changes; a
+fixed delay in ticks would not. Only walk across segments that a cart actually
+crosses, rather than searching the entire route each tick.
+
+Registration requires enough validated track behind the reference point for the
+whole train. Include approach/departure geometry at stations and full train
+clearance at route boundaries. For the first implementation, departure is forward
+and a reverse journey uses a separately compiled directed route. Later reversal
+requires explicit handling of cart order, path history, and occupied sections.
+
+### Train state and stop rules
+
+Use states such as `stopped`, `running`, `braking`, `waiting`, `suspended`, and
+`faulted`. Track independent stop reasons: manual request, station dwell, denied
+reservation, unavailable chunks, invalid track, missing cart, and emergency.
+Start removes the manual stop request; it never clears safety-related reasons.
+
+Plan braking from remaining path distance and configured deceleration, including
+a conservative tick margin. Milestone 0 must establish a reliable hard stop and
+stationary hold. Emergency stop bypasses normal braking and freezes the entire
+controlled train at its current validated positions. Check every path section
+crossed in a tick, and cap speed to the validated movement/clearance budget.
+
+## Track discovery, pathfinding, and route reuse
+
+1. Register stations, ordered waypoints, and initial track access points through
+   functions. Give stations a direction, stop offset, and platform clearance.
+2. Discover physical rails with a resumable, budgeted traversal. Read rail shape,
+   connectivity, height, and travel direction. Bound rail count and search area;
+   require relevant chunks to be available instead of scanning the whole world.
+3. Compress uninterrupted track into edges between stations, waypoints, junctions,
+   and conflict boundaries. Preserve the underlying geometry for cart movement
+   and local track validation. Model incoming direction and legal junction states;
+   connecting every adjacent rail block would allow impossible turns.
+4. Run Dijkstra over the directed graph when the player creates a route, separately
+   between successive mandatory waypoints. Use distance as the first cost metric.
+   Keep the frontier, predecessors, and reconstruction in a persistent job so
+   large searches span ticks. Cap graph size, work per tick, and queue length.
+5. Compile the result into ordered segment references, cumulative lengths,
+   station stops, conflict sections, and required junction settings. Publish only
+   a complete, validated route. Failed/cancelled jobs never expose partial routes.
+6. Every train references the same immutable route ID and revision. Keep only
+   per-train progress, speed, cart cursors, and reservation state separately.
+   Route following does no graph search and does not copy the entire route.
+
+Route computation happens once **per route revision**. Congestion changes stopping
+and reservations, not the selected path. An edit creates a new revision; active
+trains retain the old one until a safe reassignment. Retain referenced geometry
+until no train needs it, including geometry still underneath trailing carts.
+
+Survival track edits can invalidate a cached route. The datapack cannot cheaply
+observe every arbitrary block change worldwide. Validate a bounded corridor ahead
+of moving trains, extending beyond braking distance and the next movement step.
+Validate the whole train footprint before departure/resume and audit occupied
+track within a defined budget. Stop on a mismatch; require explicit repair and
+rebuild. Immediate detection of every edit anywhere is not a backend guarantee.
+
+## Stations, signals, and shared track
+
+Stations add a stop target and dwell timer to the existing stop system. A signal
+is initially the result of the backend reservation check; physical signal blocks
+come later. Reserve physical conflict sections so routes in opposite directions
+still contend for the same track. Include crossing and junction conflicts.
+
+Before entering a conflict area, atomically acquire the complete next safe
+movement authority, including an available exit/holding area. Process requests
+serially with deterministic priority and aging. Denied requests acquire nothing,
+which avoids partial reservation cycles; document the limits of this initial
+scheme for complex networks. Never promise general deadlock freedom from simple
+per-section locks alone.
+
+Keep a section reserved until the train's rear clears it. Hold physical switches
+in the required state for the whole train passage if the chosen movement backend
+needs them; reject unsupported junctions until actuation and external redstone
+interference are tested. No train may start unless its complete stopping envelope
+is validated and protected.
+
+## Persistent data and function boundaries
+
+Use the existing `railway` namespace. Public names below are planned interfaces,
+not commands already supplied by this pack.
+
+| Area | Planned functions | Main data |
+| --- | --- | --- |
+| Lifecycle | `railway:load`, `railway:tick`, `railway:admin/status` | Schema version, monotonic ID counters, limits, bounded job queues |
+| Train API | `railway:api/train/create`, `attach`, `assign_route`, `start`, `stop`, `emergency_stop`, `inspect`, `remove` | Train ID, owner UUID, dimension, ordered cart UUIDs, route revision, state, cursors, speed, stop reasons |
+| Network API | `railway:api/station/register`, `railway:api/waypoint/register`, `railway:api/network/scan` | Directed track geometry, stations, waypoints, conflict sections, network revisions |
+| Route API | `railway:api/route/create`, `status`, `rebuild`, `delete` | Immutable compiled routes and resumable construction jobs |
+| Internal modules | `railway:internal/movement/*`, `jobs/*`, `traffic/*`, `recovery/*` | Temporary execution context and validated lookup caches |
+
+Store hot numeric state in namespaced scoreboard objectives and persistent
+records in command storage, partitioned by stable IDs and dimension. One tagged
+marker controller per train is the initial entity budget; no marker per track
+block or pathfinding node. Tag managed carts and store train ID/cart index scores
+on them. UUIDs are authoritative membership references; never infer membership
+using nearest-entity selectors.
+
+Use scalar macro arguments for validated IDs/indices where necessary. Route
+tables remain storage data interpreted by a fixed set of shipped functions:
+vanilla functions cannot write new `.mcfunction` files while the game is running.
+Avoid repeatedly copying large NBT lists. The cursor/index lookup strategy itself
+must be benchmarked rather than assuming storage arrays have constant-time access.
+
+Every public API validates arguments, ownership, dimension, entity type, existence,
+and operation state before committing changes. Initial operator tests invoke
+functions directly; later player interactions call the same API. Scratch state
+must be reset per operation. Jobs retain their own state across ticks, and
+scheduled functions must restore executor/dimension/context explicitly.
+
+## Chunk loading, recovery, and multiplayer
+
+Default to **no automatic force loading**. A train may move only when all carts,
+the required track footprint, and its stopping envelope are entity-ticking and
+available. A block/chunk being readable does not alone prove its entities are
+ticking. Establish the readiness checks and conservative boundary policy in
+milestones 0 and 6; stop before entering unavailable territory.
+
+Persist train state so a completely unloaded train remains registered. Partial
+unloading suspends the train; do not move only the loaded carts. Retain occupied
+sections and uncertain reservations while suspended. A missing selector result
+does not prove destruction: distinguish unavailable chunks from a cart confirmed
+missing in an entity-ticking area. On a fault, preserve remaining carts and cargo;
+never respawn inventory-bearing carts as an automatic repair.
+
+On reload/restart, initialize only absent data, reconcile controllers and carts,
+and validate reservations before resuming. Never start all trains automatically
+from an unverified saved `running` flag. Ownership uses player UUIDs, with explicit
+sharing/administration hooks and per-owner quotas for the later survival layer.
+Serialize competing route edits and reservations. Optional force loading, if
+added later, needs bounded tickets, ownership, and cleanup; it is not a prerequisite.
+
+## Tick budget and verification
+
+- Update moving/braking trains every tick. Recheck waiting trains and maintenance
+  on slower staggered schedules, with prompt wake-ups for explicit start requests.
+- Use typed/tagged selectors and cached membership. Avoid nested global scans,
+  per-train network searches, and one worker entity per rail block.
+- Give discovery, pathfinding, reconciliation, and diagnostics separate bounded
+  work quotas. A busy creation queue must not starve train movement or safety.
+- Enforce maximum train length, speed, graph size, route size, job count, and total
+  active carts. Determine release limits from measurements, not assumed capacity.
+- Target runtime work proportional to active carts plus nearby route checks and
+  crossed boundaries. Count storage/selector costs as well as command counts.
+- Profile idle, 1/10/50 active trains with 3 and 8 carts each, increasing route
+  lengths, and multiple simultaneous route jobs. These are test points, not
+  promised supported capacities. Record hardware, vanilla settings, baseline and
+  added MSPT, tail latency, command counts, and memory/storage growth. Set a
+  documented tick-time budget from those results and enforce operating limits.
+
+Acceptance worlds must cover curves, slopes, powered rails, station approach,
+stop/resume, emergency stops, riders, cargo, two trains sharing a route, opposing
+traffic, junction interference, broken rails, destroyed carts, partial unloading,
+owner disconnects, reload, and server restart. Verify behavior on the actual 26.3
+server. Metadata checks alone do not validate commands or minecart physics.
+
+## File rules and next implementation slice
+
+All human documentation uses `.md`, which Minecraft ignores. Keep scripts,
+benchmark notes, and other development files outside runtime resource directories
+and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
+`.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
+
+Next: run the milestone 0 operator-driven fixture and report its results. Then
+select or revise the movement backend, and add lifecycle/registration and the
+three-cart test path. Prove
+movement, holding, and restart behavior before building automatic graph discovery
+or the survival interface.
+
+Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
+Technical Changes (data pack version 121.0). The movement design above is proposed
+and requires in-game testing; it is not a claim of verified 26.3 physics support.
