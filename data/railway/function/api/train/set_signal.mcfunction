@@ -1,4 +1,4 @@
-data modify storage railway:api result set value {ok:0b,error:"Invalid train or unloaded controller."}
+data modify storage railway:api result set value {ok:0b,error:"Use blocked:0 or blocked:1 with a loaded train."}
 $data modify storage railway:scratch request set value {train:$(train)}
 scoreboard players set #selected rw.sys 0
 execute store result score #selected rw.sys run data get storage railway:scratch request.train 1
@@ -7,4 +7,6 @@ execute store result score #valid rw.sys run function railway:internal/registry/
 execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] Invalid or unknown train ID. Use a positive integer ID printed by train creation.","color":"red"}
 execute unless score #valid rw.sys matches 1 run return 0
 
-return run function railway:internal/movement/control_release_emergency with storage railway:scratch ctx
+$data modify storage railway:scratch signal set value {blocked:$(blocked)}
+execute unless data storage railway:scratch signal{blocked:0} unless data storage railway:scratch signal{blocked:1} run return 0
+return run function railway:internal/movement/set_signal with storage railway:scratch ctx

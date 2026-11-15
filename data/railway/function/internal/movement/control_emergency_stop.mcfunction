@@ -5,5 +5,5 @@ $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.t
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.emerg 1
 $data modify storage railway:state trains.t$(id).state set value "emergency"
 data modify storage railway:api result set value {ok:1b}
-tellraw @s {"text":"[Railway] Emergency stop latched. Release emergency, then start explicitly.","color":"red"}
+tellraw @s {"text":"[Railway] Emergency stop. Use start to resume when safe; other stop reasons still apply.","color":"red"}
 return 1

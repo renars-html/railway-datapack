@@ -1,15 +1,14 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player reports all composition and registered-train tests passed
-in singleplayer, including reload and quitting/reopening while riding, inventory
-retention, and passenger retention. Dedicated-server restart and multiplayer
-disconnect tests remain unverified. Milestone 3 now prioritizes smooth,
-customizable acceleration and deceleration before automatic routing. Fractional
-progress, linear speed ramps, configurable rates, service braking and a latched
-emergency stop are implemented and await [the next tests](TESTING.md).
-Default target remains step 3 (~7.5 blocks/s), maximum step 8 (~20 blocks/s).
-Known high-speed curve distortion remains; long-train tests use 20 carts.
+Status: the player reports smooth/customizable motion passed in singleplayer.
+Default acceleration and deceleration are now both ~2.5 blocks/s². Cruise speed
+is configured in blocks/s (default 7.5, cap ~20), with fine fixed-point resolution
+rather than user-visible steps. Start resumes an emergency stop without a separate
+release operation. Milestone 3 now includes a discrete braking-distance station
+approach, exact stop target, dwell/departure and an independent signal stop reason,
+awaiting [cycle 7 tests](TESTING.md). Server/disconnect recovery remains unverified.
+All full-train acceptance tests continue to use 20 carts.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -227,12 +226,11 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify smooth starts, speed changes, service stops, emergency latching,
-custom rate settings and reload persistence on the 20-cart train in singleplayer.
-Then add independent station/signal stop reasons, braking-distance targets and
-station approach tests before automatic graph discovery/route compilation.
-Schedule multiplayer disconnect and dedicated-server recovery tests when available;
-do not infer their success from singleplayer tests.
+Next: verify exact station arrivals, dwell/departure, independent signal/manual
+holds and persistence on the existing 20-cart train. Then begin registered station
+and waypoint graph construction and reusable route compilation. Physical signals,
+reservations and chunk-boundary safety remain separate later gates. Multiplayer
+recovery must be tested when a server becomes available.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

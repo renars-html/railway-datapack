@@ -8,5 +8,8 @@ tag @s add railway.active
 scoreboard players set @s rw.pos 0
 scoreboard players set @s rw.vel 0
 scoreboard players set @s rw.accel 50
-scoreboard players set @s rw.brake 100
+scoreboard players set @s rw.brake 50
 scoreboard players set @s rw.emerg 0
+scoreboard players set @s rw.cruise 3007
+scoreboard players set @s rw.signal 0
+scoreboard players set @s rw.station 0

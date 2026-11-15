@@ -7,3 +7,6 @@ execute unless data storage railway:state smooth_schema run function railway:int
 scoreboard players set #thousand rw.sys 1000
 scoreboard players set #fine_length rw.sys 318000
 scoreboard players set #fifty rw.sys 50
+execute unless data storage railway:state station_schema run function railway:internal/movement/station_init
+scoreboard players set #two rw.sys 2
+scoreboard players set #speed_factor rw.sys 2494

@@ -1,73 +1,44 @@
 # Railway datapack
 
-A datapack in development for **Minecraft Java Edition 26.3**, using datapack
-format **121.0**. The first implementation is an opt-in movement test fixture,
-not yet a survival train system. See [TESTING.md](TESTING.md) for this test cycle.
-
-## Structure
-
-```text
-pack.mcmeta                    Pack metadata and supported format
-data/minecraft/tags/function/  Load/tick entry points
-data/railway/function/         Runtime and operator-only movement fixture
-ROADMAP.md                     Backend plan (ignored by Minecraft)
-TESTING.md                     Current test cycle (ignored by Minecraft)
-```
-
-Use singular directory names such as `function`, `recipe`, and `advancement`.
-Markdown documentation and `.gitkeep` files are ignored by Minecraft.
+Minecraft Java **26.3**, data pack format **121.0**. This is an operator-driven
+backend prototype. See [ROADMAP.md](ROADMAP.md) and [TESTING.md](TESTING.md).
 
 ## Install
 
-1. Copy this repository folder into your world's `datapacks` directory, for
-   example `.minecraft/saves/<world>/datapacks/railway-datapack/`.
-2. Ensure `pack.mcmeta` is directly inside that folder.
-3. Open the world in Java Edition 26.3 and run `/reload` (requires cheats or
-   operator permissions).
-4. Run `/datapack list enabled` and check that the pack is listed.
+Replace the pack folder in your world's `datapacks` directory, with `pack.mcmeta`
+directly inside it. `/reload`, then `/datapack list enabled` to check loading.
+Replacing the folder removes obsolete functions when APIs change. A ZIP with
+`pack.mcmeta` and `data/` at its root also works. No build step or dependencies.
 
-A ZIP also works: place `pack.mcmeta` and `data/` at the ZIP root, without an
-extra containing directory, then put the ZIP in the world's `datapacks` folder.
+## Current backend
 
-## Development
+Persistent train IDs, owner/controller/cart UUID records, ordered membership,
+count-based compositions of 1–64 normal/chest carts, and a 20-cart movement test.
+The existing ~40-block test loop fits 1–24 carts; it supports fractional movement,
+configurable physical speed/acceleration/deceleration, service and emergency
+stops, planned station braking/dwell, and independent signal holds. Singleplayer
+reload and quit/reopen behavior has passed earlier cycles. New station behavior
+awaits player tests; dedicated-server/disconnect recovery remains unverified.
 
-See [the backend roadmap](ROADMAP.md) for implementation milestones, the proposed
-train and route architecture, performance constraints, and acceptance gates.
-Milestone 0 has passed player tests at the initial speeds. The movement fixture
-now defaults to about 7.5 blocks/s and caps at about 20 blocks/s. Persistent train
-registration now drives a 20-cart movement prototype awaiting the tests in
-TESTING.md. Automatic
-route discovery, reservations and survival interactions are not implemented.
+Public operations are in `api/train/`; test fixtures are in `dev/`; implementation
+functions are in `internal/`. Existing ordinary minecarts are untouched unless
+explicitly registered. Owner UUIDs are stored, but these remain operator APIs;
+survival interaction and access enforcement are future work. No force loading or
+automatic cargo/cart respawning is used.
 
-No dependencies, build step, or background services are required to run the pack.
-The load function initializes registry objectives, the `rw.dev` scoreboard and a fixed test path in
-storage. Without a fixture, each tick only checks whether the fixture is enabled.
-Only explicitly tagged test entities are controlled. Existing minecarts are not
-registered or modified. Reloading pauses a registered fixture while keeping its
-position; `/function railway:dev/start` resumes it.
+`configure_motion {train:ID,speed:7.5,accel:2.5,decel:2.5}` configures blocks/s and
+blocks/s². Use `start`, `stop`, `emergency_stop`, `inspect`, `station_stop` and
+`set_signal` with the arguments in TESTING.md. `start` resumes an emergency stop;
+there is no separate release API. `fast` and `slow` are removed.
 
-The fixture is a single global Overworld test rig. It requires a Creative player
-to create it. Setup replaces a 16×16×6 volume at the player's feet, so use a
-disposable test world. Cleanup removes its carts and test inventory, and leaves
-the platform and rails in place. This is a test harness, not the final chunk
-loading or multiplayer recovery implementation.
+The original `dev/setup` replaces a 16×16×6 volume at the Creative caller's feet;
+use a disposable world. `dev/long_train` binds a registered train to that loop and
+parks the two original carts. Composition rebuilds preserve surviving cargo in a
+separate parked grid. No function restores overwritten terrain.
 
-Validate the metadata locally with:
+Only actual runtime content uses `.mcfunction`, resource `.json`, or `pack.mcmeta`.
+Documentation uses `.md`, which Minecraft ignores. Runtime folders use singular
+names (`function`, `tags/function`). Automatic track discovery, physical stations/
+signals, reservations, and the survival interface are not implemented yet.
 
-```sh
-python3 -m json.tool pack.mcmeta
-```
-
-Final loading and command validation requires Minecraft Java Edition 26.3.
-
-Version reference: [Minecraft version metadata](https://github.com/misode/mcmeta/blob/summary/versions/data.json)
-(entry `26.3`, datapack version `121.0`).
-
-The registered 20-cart movement test uses `railway:dev/long_train {train:ID}`
-and per-train `railway:api/train/start`, `stop`, `fast`, and `slow` controls.
-Follow TESTING.md before binding; it replaces the original fixture controls.
-
-Registered trains now use fractional progress and configurable linear acceleration/
-deceleration. `api/train/stop` requests service braking; `emergency_stop` latches an
-immediate hold, and `release_emergency` releases the latch without starting.
-Use `configure_motion {train:ID,accel:2.5,decel:5.0}` for rates in blocks/s².
+Version reference: [official Java 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3).
