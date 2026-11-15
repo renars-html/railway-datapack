@@ -1,16 +1,15 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: registry inspection has been confirmed in-game. Milestone 2 now binds
-20 persistent cart members to the test loop through a registered train controller,
-with per-train start/stop/speed, UUID/index validation, and reload pause epochs.
-Operator spawn/rebuild commands support count-based compositions of 1–64 carts;
-rebuild retires the old ID and preserves surviving carts/cargo. The small test
-loop accepts 1–24 carts. Arbitrary ordering and longer routes remain future work.
-The implementation awaits [20-cart movement tests](TESTING.md). Default remains
-step 3 (~7.5 blocks/s), maximum step 8 (~20 blocks/s); high-speed visual curve
-rounding and spacing distortion remain known limitations. All future full-train
-movement tests include at least 20 carts.
+Status: the player reports all composition and registered-train tests passed
+in singleplayer, including reload and quitting/reopening while riding, inventory
+retention, and passenger retention. Dedicated-server restart and multiplayer
+disconnect tests remain unverified. Milestone 3 now prioritizes smooth,
+customizable acceleration and deceleration before automatic routing. Fractional
+progress, linear speed ramps, configurable rates, service braking and a latched
+emergency stop are implemented and await [the next tests](TESTING.md).
+Default target remains step 3 (~7.5 blocks/s), maximum step 8 (~20 blocks/s).
+Known high-speed curve distortion remains; long-train tests use 20 carts.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -25,7 +24,7 @@ limited set of rail configurations. Expand that set through tested milestones.
 | 0 | Verify movement on 26.3 | Test command-controlled empty and occupied carts, retained passengers, gravity, collision, slopes, curves, stop holding, and entity loading. Test vanilla minecart behavior with the world's actual settings. | A passenger can ride a controlled cart through the supported geometry without dismounts, persistent drift, or unacceptable jitter. Record the supported settings and geometry before implementing the rest. |
 | 1 | Core runtime | Add idempotent load/tick entry points, persistent IDs, train/cart registration, configuration, bounded job processing, diagnostics, and schema versioning. | Reloading preserves registrations and state; two registered trains have independent IDs and data. Unregistered minecarts are untouched. |
 | 2 | One working train | Use a manually registered short test path; create one train controller, ordered cart membership, distance-based spacing, and a shared speed/progress update. | Three carts follow the same path through straights, curves, and slopes with stable spacing during acceleration and braking. Cargo and passenger tests pass. |
-| 3 | Stop and start | Add start, service stop, emergency stop, stop reasons, target speed, acceleration/braking limits, and stationary holding. | Every cart stops as one train, stays stopped on supported slopes and powered rails, and resumes without spacing changes. Removing one stop reason cannot override another. |
+| 3 | Stop and start | Prioritize smooth, configurable acceleration/deceleration in blocks/s²; add fractional progress, start, service braking, a latched emergency stop, independent stop reasons, target speed and stationary holding. | Every cart stops as one train, stays stopped on supported slopes and powered rails, and resumes without spacing changes. Removing one stop reason cannot override another. |
 | 4 | Track graph and reusable routes | Register stations/waypoints, discover track in bounded jobs, build a directed graph, run creation-time pathfinding, and publish versioned shared routes. | Two trains use the same completed route without running pathfinding while travelling. Ordered waypoints, unreachable destinations, and explicit route rebuilding work. |
 | 5 | Stations and traffic control | Add station stop positions, dwell timers, conflict sections, reservations, junction locks, and signal-derived stop reasons. | Opposing trains cannot enter the same reserved conflict section. A junction remains locked until the final cart clears it. Trains stop accurately at stations. |
 | 6 | Multiplayer reliability and performance | Handle partial chunk loading, reload/restart reconciliation, broken track, missing carts, concurrent requests, ownership, and profiling. | Recovery never duplicates a cart or frees an occupied section merely because it unloaded. Measured operating limits and repeatable server benchmarks are documented. |
@@ -76,6 +75,12 @@ Use states such as `stopped`, `running`, `braking`, `waiting`, `suspended`, and
 `faulted`. Track independent stop reasons: manual request, station dwell, denied
 reservation, unavailable chunks, invalid track, missing cart, and emergency.
 Start removes the manual stop request; it never clears safety-related reasons.
+
+Acceleration/deceleration are configurable independently per train. First use
+linear speed ramps with fractional path progress so low acceleration does not
+quantize to whole path samples. Consider optional jerk limits/easing only after
+the basic ramps are verified. Lowering cruise speed uses service deceleration;
+manual stop requests target zero. Emergency/fault/reload holds bypass the ramp.
 
 Plan braking from remaining path distance and configured deceleration, including
 a conservative tick margin. Milestone 0 must establish a reliable hard stop and
@@ -222,10 +227,12 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify the registered 20-cart train through movement, holding, per-train
-controls and reload/restart. Resolve any long-train issues before adding braking,
-stop reasons and station targets. Automatic graph discovery, route compilation,
-chunk-boundary safety and the survival interface remain later gates.
+Next: verify smooth starts, speed changes, service stops, emergency latching,
+custom rate settings and reload persistence on the 20-cart train in singleplayer.
+Then add independent station/signal stop reasons, braking-distance targets and
+station approach tests before automatic graph discovery/route compilation.
+Schedule multiplayer disconnect and dedicated-server recovery tests when available;
+do not infer their success from singleplayer tests.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

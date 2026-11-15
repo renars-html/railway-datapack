@@ -1,8 +1,62 @@
-# Test cycle 5: registered 20-cart movement
+# Test cycle 6: smooth acceleration and deceleration
 
 Train inspection now prints the expected information, confirmed by the player.
 This cycle connects persistent membership to the existing movement path. It does
 not add pathfinding, collision protection, reservations, or survival controls.
+
+## New tests on your existing 20-cart train
+
+Prior tests passed in singleplayer, including reload and quitting/reopening while
+riding with retained cargo. Multiplayer/server-specific checks remain pending;
+you do not need a dedicated server for this cycle.
+
+Update and `/reload` near the existing bound train. No rebuilding is needed.
+Every command below uses the same `{train:ID}` argument, replacing ID with its
+integer value. Rates and fractional progress migrate automatically.
+
+1. **Start:** run `api/train/start`. At target step 3 the default rate should
+   accelerate from rest to about 7.5 blocks/s in **3 seconds**, rather than jump
+   to cruise speed. Watch head/middle/rear spacing through curves and slopes.
+2. **Cruise changes:** repeated `api/train/fast` raises the target up to 8; the
+   actual speed should ramp upward. `api/train/slow` lowers the target and should
+   brake gradually. `api/train/inspect` now prints target step, actual speed,
+   effective acceleration/deceleration and emergency latch (0 or 1).
+3. **Service stop:** `api/train/stop` now brakes gradually, then holds. From
+   step 3 expect about **1.5 seconds** to stop; from step 8 about **4 seconds**.
+   Rebuilding is refused while braking. A start during braking should accelerate
+   from the current speed without a jump. The loop may be traversed more than
+   once during a slow stop; automatic station stopping is not implemented yet.
+4. **Configure rates:** use full commands, for example:
+
+   ```mcfunction
+   /function railway:api/train/configure_motion {train:ID,accel:5.0,decel:2.5}
+   ```
+
+   Acceleration is now about twice as fast and braking takes about twice as long
+   as defaults. Values are **blocks/s²**, each allowed from **0.05 to 50** and
+   rounded to approximately 0.05 increments. Changing rates must not change
+   current speed instantly. Restore defaults with `accel:2.5,decel:5.0`.
+5. **Emergency:** while moving, run `api/train/emergency_stop`. It should hold
+   immediately. `api/train/start` must refuse while latched. Run
+   `api/train/release_emergency`: the train must remain stopped until `start`.
+   A normal stop or speed change must not clear the latch.
+6. **Persistence:** change the rates, then `/reload` while moving. It should
+   stop immediately, preserve exact fractional progress, carts/cargo/riders,
+   target speed and configured rates. Start should ramp from zero. Repeat with
+   quit/reopen. Also check an emergency latch survives reload and still blocks
+   start. Inspect settings after resuming. Restore defaults afterwards.
+
+Watch for repeated speed jumps, crawling that alternates stop/go, overshoot of
+selected target speed, persistent jitter, and growing spacing errors. Known
+high-speed curve rounding is still possible; report any change versus before.
+Report pass/fail, target step, configured rates and approximate start/stop time.
+All quoted times assume 20 TPS; settings are effective within ~0.05 blocks/s².
+
+The speed model now uses 1/1000 of a path sample with interpolation between its
+neighboring coordinates, instead of whole-sample progress. Defaults are actually
+~2.494 and ~4.988 blocks/s² due to fixed-point rounding. Emergency/fault/reload
+stops are immediate safety holds. This prototype does not yet provide arbitrary
+track-change detection or chunk-boundary safety.
 
 ## Creating and rebuilding compositions
 
@@ -66,7 +120,7 @@ All train controls below require `{train:ID}` with that same numeric ID.
   default step **3 (~7.5 blocks/s)**. Check all 20 carts, not only the first pair:
   stable order/spacing, no lost carts, rider ejections, pileups, or accumulating
   errors through the hill, curves and powered rail.
-- **Hold:** `/function railway:api/train/stop {train:ID}` should hold every cart.
+- **Hold:** `/function railway:api/train/stop {train:ID}` should brake, then hold every cart.
   Wait 10 seconds, then start again. Repeat with the head on the slope. Boarding
   another cart while stopped must work; try a middle and rear cart for one lap.
 - **Speed:** `api/train/fast` and `api/train/slow` with the same argument adjust

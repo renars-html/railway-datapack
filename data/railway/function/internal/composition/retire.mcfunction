@@ -1,5 +1,6 @@
 $execute if data storage railway:state trains.t$(id){state:"retired"} run return 0
 $execute if entity @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id),rw.run=1}] run return 0
+$execute if entity @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id),rw.vel=1..}] run return 0
 scoreboard players set #controllers rw.sys 0
 $execute as @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] run scoreboard players add #controllers rw.sys 1
 execute unless score #controllers rw.sys matches 1 run return 0

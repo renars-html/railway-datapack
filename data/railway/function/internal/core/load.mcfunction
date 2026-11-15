@@ -3,3 +3,7 @@ execute unless data storage railway:state schema run function railway:internal/c
 execute unless data storage railway:state movement_schema run function railway:internal/movement/init
 scoreboard players add #epoch rw.sys 1
 scoreboard players set #negative rw.sys -1
+execute unless data storage railway:state smooth_schema run function railway:internal/movement/smooth_init
+scoreboard players set #thousand rw.sys 1000
+scoreboard players set #fine_length rw.sys 318000
+scoreboard players set #fifty rw.sys 50

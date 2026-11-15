@@ -66,3 +66,8 @@ Version reference: [Minecraft version metadata](https://github.com/misode/mcmeta
 The registered 20-cart movement test uses `railway:dev/long_train {train:ID}`
 and per-train `railway:api/train/start`, `stop`, `fast`, and `slow` controls.
 Follow TESTING.md before binding; it replaces the original fixture controls.
+
+Registered trains now use fractional progress and configurable linear acceleration/
+deceleration. `api/train/stop` requests service braking; `emergency_stop` latches an
+immediate hold, and `release_emergency` releases the latch without starting.
+Use `configure_motion {train:ID,accel:2.5,decel:5.0}` for rates in blocks/s².

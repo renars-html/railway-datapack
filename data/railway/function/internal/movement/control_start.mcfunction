@@ -1,5 +1,9 @@
 $execute unless entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run return 0
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run function railway:internal/movement/ensure_motion
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] unless score @s rw.epoch = #epoch rw.sys run function railway:internal/movement/reload_pause with storage railway:scratch ctx
 
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.emerg=1}] run tellraw @s {"text":"[Railway] Release the emergency latch before starting.","color":"red"}
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.emerg=1}] run return 0
 execute in minecraft:overworld store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] Start refused: missing member or invalid membership.","color":"red"}
 execute unless score #valid rw.sys matches 1 run return 0
