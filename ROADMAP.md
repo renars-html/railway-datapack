@@ -1,8 +1,9 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: milestone 0 fixture implemented; awaiting the player tests in
-[TESTING.md](TESTING.md). Production train control is not implemented yet.
+Status: the player reported all milestone 0 cycle 1 tests passed. Closer cart
+spacing is implemented and awaits the repeat tests in [TESTING.md](TESTING.md).
+Production train control is not implemented yet.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -214,7 +215,7 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: run the milestone 0 operator-driven fixture and report its results. Then
+Next: repeat the milestone 0 fixture tests with the reduced cart gap. Then
 select or revise the movement backend, and add lifecycle/registration and the
 three-cart test path. Prove
 movement, holding, and restart behavior before building automatic graph discovery

@@ -1,9 +1,19 @@
-# Test cycle 1: minecart movement backend
+# Test cycle 2: closer cart spacing
 
-Status: ready for player testing in **Java 26.3**. Static checks have passed;
-Minecraft command loading, rider retention, geometry, and smoothness have not
-been verified in-game. This gate decides whether to keep the proposed movement
-backend before implementing production trains or pathfinding.
+Status: the player reported all cycle 1 tests passed, including both speeds,
+holding, slopes, powered rail, and both gravity settings. This cycle changes only
+cart spacing and repeats those tests before further backend work.
+
+The offset is now 13 samples instead of 24: **1.621 blocks between cart centers**,
+giving approximately **0.641 blocks of visible clearance on straight track**
+(using the standard 0.98-block cart width), versus about 2.013 previously. That is
+roughly 32% of the previous clear gap. Clearance on curves and slopes varies with
+geometry; check those locations for clipping or apparent overlap.
+
+For an existing fixture, replace the datapack files and run `/reload` while near
+it. Dismount before reloading: the cargo cart will move closer immediately. Keep
+the existing track and carts; do not run setup again. Then repeat the tests below,
+checking spacing, overlap, jitter, and whether holding/restarting stays stable.
 
 ## Setup
 
@@ -23,7 +33,7 @@ any `railway` function-loading errors in `.minecraft/logs/latest.log`.
 
 | Test | How | Expected result |
 | --- | --- | --- |
-| Occupied movement | Right-click the empty cart on the north rail. Run `/function railway:dev/start`. Ride two laps (about 32 seconds), then run `/function railway:dev/fast` and ride two more (about 16 seconds). | You stay mounted. Both carts follow the rails, including the hill and corners. The cargo cart remains about 3 track blocks behind. No sustained shaking, visible rail clipping, or unexplained speed changes. |
+| Occupied movement | Right-click the empty cart on the north rail. Run `/function railway:dev/start`. Ride two laps (about 32 seconds), then run `/function railway:dev/fast` and ride two more (about 16 seconds). | You stay mounted. Both carts follow the rails, including the hill and corners. The cargo cart remains about 1.62 track blocks behind by center distance. No overlap, sustained shaking, visible rail clipping, or unexplained speed changes. |
 | Hold/resume | While riding, run `/function railway:dev/stop`, wait 10 seconds, then run `/function railway:dev/start`. | Both carts hold in place and resume together. No continued movement, sinking, or dismount. |
 | Slope and powered rail | Stop and dismount. Run `/function railway:dev/hill`, board the repositioned passenger cart, and wait 10 seconds before starting. Then repeat after stopping/dismounting with `/function railway:dev/powered`. | The passenger cart holds on the slope and on powered rail. Boarding does not push it away. It resumes correctly at both locations. |
 | Gravity comparison | Run `/function railway:dev/gravity_on` and ride one lap. Repeat the hill hold if possible, then restore `/function railway:dev/gravity_off`. | Report any difference in height, jitter, drift, or passenger retention. The default uses gravity off; this comparison helps identify physics conflicts. |
@@ -54,8 +64,8 @@ or duplicate carts require inspection rather than automatic respawning.
 ## Implementation limits for this cycle
 
 The loop uses 318 uniformly spaced distance samples over a 39.657-block rail
-centerline. Speeds are approximately 0.125 and 0.249 blocks/tick, with 2.993 blocks
-between the carts. One marker supplies the local origin; two explicitly tagged
+centerline. Speeds are approximately 0.125 and 0.249 blocks/tick, with 1.621 blocks
+between cart centers. One marker supplies the local origin; two explicitly tagged
 carts use shared progress with an offset. Position and zero velocity are applied
 each tick, including while held. Curve interpolation follows the vanilla diagonal
 rail centerline; the rail height and its interaction with entity physics are
