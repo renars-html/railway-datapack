@@ -1,105 +1,96 @@
-# Test cycle 10: shared loop routes and automatic station service
+# Test cycle 11: branching-graph pathfinding backend
 
-The player reports the previous one-train tests worked at simulation distances
-5 and 12, maintaining 20 TPS. Fleet-scale capacity remains unmeasured and testing
-it is deferred. This cycle tests reusable route compilation and following only.
+The player confirms automatic ordered loop service and cache reuse pass. Reload
+currently pauses normal service, including during dwell, and requires `start`.
+Automatic restoration of service intent/dwell timing remains a roadmap gate.
+This cycle does not change that policy or the working loop movement.
 
-Update the pack and `/reload`. Keep the current 20-cart bound train, large loop
-and loading lease. Do not rebuild the fixture. Use numeric train/route IDs below.
+Update and `/reload`. These tests create **virtual topology data only**: they do
+not place rails, move trains, alter stations, or change your assigned service route.
+No performance test or repeat of the previous movement tests is needed.
 
-## Create a reusable route
-
-1. Ensure saved stations **1 and 2** exist on different straights. If needed, stand
-   beside a desired center stopping point and use:
-
-   ```mcfunction
-   /function railway:dev/station_here {station:2}
-   ```
-
-   Wait for the marker/save message. Avoid editing station marks during compilation.
-2. Create the ordered service route:
-
-   ```mcfunction
-   /function railway:api/route/create {stops:[1,2],speed:7.5,accel:2.5,decel:2.5,dwell:100}
-   ```
-
-   Note the printed **route ID**. The job processes stops and builds a shared
-   braking table in bounded batches. Keep the world unpaused while waiting:
-   first compilation is about 5 seconds at 7.5 blocks/s, up to ~13 seconds at 20.
-
-   ```mcfunction
-   /function railway:api/route/status {route:ROUTE}
-   ```
-
-   Expect `state:"ready"`, two frozen station samples, forward leg distances,
-   center braking points, and a cache key. A missing/invalid station must produce
-   `state:"failed"` instead; failed/compiling routes cannot be assigned.
-3. Stop the train and wait until stationary. Assign and start:
-
-   ```mcfunction
-   /function railway:api/train/assign_route {train:TRAIN,route:ROUTE}
-   /function railway:api/train/start {train:TRAIN}
-   ```
-
-   Expect **station 1 → dwell 5 seconds → station 2 → dwell → repeat**, without
-   manually requesting station_stop again. Run at least two complete cycles.
-   Both train-center alignments, spacing, riders and cargo must remain unchanged.
-
-## State and reuse checks
-
-- Inspect the train: service route ID and next stop index should be shown. The
-  index advances once on arrival and does not advance repeatedly during dwell.
-- Stop/start during an approach and during dwell. Use the existing blocked signal
-  API. Stops/signals should pause service without losing the target or advancing
-  the station order. Clearing a signal must not override a manual stop.
-- `/reload` and quit/reopen during approach/dwell: train immediately pauses and
-  retains route, next stop, distance, wait time and inventory. Start resumes the
-  appropriate next service step. A pending compilation also resumes after reload.
-- Emergency start bypasses route service and cancels the pending station plan;
-  normal start returns to automatic service, at the current next-stop index.
-- Create another route with `stops:[2,1]`, `speed:7.5`, `accel:3.0`, `decel:2.5`,
-  `dwell:100`. Its status should quickly become ready with **the same cache key**
-  and `cache_reused:1b`. Acceleration can differ because the shared braking table
-  depends on geometry, cruise speed and deceleration. No train assignment changes
-  merely because a second route was created. Stop and assign it to test reversed
-  station order (travel direction still stays forward around the loop).
-
-## Manual control and immutable snapshots
-
-While a service route is assigned, manual station_stop and configure_motion are
-refused: route speed/rates and station snapshots remain fixed and shared. To go
-back to manual operation, stop, wait until stationary, then:
+## Generate the branching fixture
 
 ```mcfunction
-/function railway:api/train/clear_route {train:TRAIN}
+/function railway:dev/graph_fixture
 ```
 
-The train remains held; manual station/configuration APIs work again. To change
-service settings, create another route and assign it while stopped. Moving a saved
-station marker does not move a stop in an already-published route; create a new
-route to capture the new location. Geometry relocation invalidates old routes,
-which must not start moving the train on mismatched geometry.
+Note the printed **graph ID**, which is independent of train/service-route IDs.
+Expect a sealed graph with 9 nodes and 10 directed edges. Rerunning inspects the
+same graph rather than creating another. Its weighted branches are:
 
-Report ordered service, exact center arrivals, dwell/cursor behavior, independent
-holds, persistence, cache reuse and rejected invalid routes. No performance
-profiling or repeat of unrelated composition/loading tests is needed.
+- 1 → 2 → 3 → 6: cost 30.
+- 1 → 2 → 4 → 5 → 6: cost 25 (shortest).
+- 1 → 7 → 6: cost 55.
+- 6 → 1: cost 20; 6 → 8: cost 7.
+- Node 8 is a dead end; node 9 is isolated.
 
-## Current scope
+Costs are positive integer test weights, not physical block distances yet.
 
-This first compiler uses the existing **directed cycle graph**. Each forward leg
-has one possible path, so resolving station positions and directed distances is
-the route calculation. Geometry remains shared, not copied per train. Per-speed
-braking thresholds are computed once per profile (32 velocities per background
-tick), shared by all compatible routes/trains, and looked up while approaching.
-Cruise-distance gating skips the approach search while braking is unnecessary.
+## Path selection and ordered waypoints
 
-Route IDs are monotonic, published routes immutable, and only one compiler job is
-accepted at a time. Stops lists have 2–16 integer station IDs; repeated IDs mean
-another forward lap. Tables remain shared across reload. Partial jobs/tables are
-never assignable. Runtime follows snapshots with constant-sized per-train state;
-it does not rerun graph search or rebuild a braking profile per lap.
+Replace GRAPH with the graph ID; replace PATH with each newly printed path ID.
+Only one path compilation job is accepted at a time. Wait for completion before
+submitting the next. The unpaused world must tick; these small jobs take seconds.
 
-General branching/junction pathfinding, waypoints, following-block occupancy,
-reservations, compact segment geometry, multi-network chunk ownership and manual
-rail discovery are not implemented in this cycle. The next backend phase adds a
-generated branching test graph rather than reading manually placed rails.
+```mcfunction
+/function railway:api/path/create {graph:GRAPH,from:1,to:6,via:[]}
+/function railway:api/path/status {path:PATH}
+```
+
+Expect `state:"ready"`, `nodes:[1,2,4,5,6]`, `edges:[1,4,5,6]`, `cost:25`.
+
+Repeat with these arguments and compare ready results:
+
+| From | To | Via | Expected nodes | Cost |
+| --- | --- | --- | --- | --- |
+| 1 | 6 | `[3]` | `[1,2,3,6]` | 30 |
+| 1 | 6 | `[7]` | `[1,7,6]` | 55 |
+| 1 | 8 | `[6,2]` | `[1,2,4,5,6,1,2,4,5,6,8]` | 77 |
+| 6 | 6 | `[]` | `[6]` with empty edges | 0 |
+
+`via` nodes are mandatory **in order**, but do not imply stopping/dwell. The same
+node can legitimately appear more than once as consecutive legs traverse a cycle.
+
+## Failure and persistence checks
+
+- From 8 to 1, or from 1 to 9, with `via:[]`: expect `state:"failed"`, an error,
+  and **no partial nodes/edges published**.
+- From 1 to 6 with `via:[99]`: invalid waypoint must fail similarly. The existing
+  valid paths and loop service must be unchanged.
+- Start the `[6,2]` job and immediately `/reload`. It should eventually produce
+  the same ready path and cost 77. A quit/reopen during compilation should work
+  the same way. Normal trains still pause on reload and require manual start.
+- Inspect an earlier ready path after other jobs: contents must remain unchanged.
+- Try editing the sealed fixture:
+
+  ```mcfunction
+  /function railway:api/graph/add_edge {graph:GRAPH,from:1,to:8,cost:1}
+  ```
+
+  Expect return 0. Inspect with `api/graph/inspect {graph:GRAPH}`: still 10 edges.
+  Repeating the original 1→6 query must still give cost 25.
+
+Report returned states, node/edge sequences, costs, persistence and any command/
+function-loading errors. No full new rail-layout or train ride test is required.
+
+## Backend scope and API
+
+`api/graph/create`, `add_node {graph:G,node:N}`, `add_edge
+{graph:G,from:A,to:B,cost:C}`, `seal {graph:G}` and `inspect {graph:G}` build and
+inspect topology. Nodes are integer IDs 1–64; edges are directed, with positive
+integer costs 1–1,000,000 and at most 256 edges. A sealed graph is immutable;
+changes require a new graph ID, so published paths remain stable.
+
+The Dijkstra worker initializes labels, scans a bounded minimum frontier, relaxes
+outgoing edges and reconstructs predecessors. Each tick processes at most eight
+node/edge/backtracking operations in its current phase. State, cursors, labels and
+partial results live in storage; there are no worker entities or world scans.
+Up to 16 via nodes are supported. Only complete successful paths become ready.
+
+Published **path IDs are topology results**, not the existing loop-service route
+IDs. Do not pass them to train/assign_route yet: the next layer adds generated edge
+geometry and makes the route compiler consume these paths for actual branching
+movement. Physical conflict groups, occupancy/reservations, manual rail discovery,
+and survival controls remain later work. Current trains continue using the
+previously verified loop route controller.

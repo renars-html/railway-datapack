@@ -1,14 +1,14 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player confirms the one-train loading/movement tests pass at
-simulation distances 5 and 12 with 20 TPS; fleet-scale profiling is explicitly
-deferred. The next backend slice adds immutable ordered loop routes, resumable
-shared braking-profile compilation, automatic station cycling and per-train route
-assignment/cursors, awaiting [cycle 10 tests](TESTING.md). This is a directed-cycle
-compiler, not general junction pathfinding. Geometry is shared, and compatible
-routes reuse a braking table instead of calculating it per train/lap. Multiplayer
-recovery and high-double-digit fleet capacity remain unverified.
+Status: the player reports ordered loop service, shared braking profiles and
+normal operations pass. Reload during dwell currently pauses service and requires
+manual start; full automatic recovery is explicitly outstanding. The new topology
+layer adds immutable directed graphs, waypoint-aware time-sliced Dijkstra and
+published reusable node/edge paths, awaiting [cycle 11 tests](TESTING.md). It uses
+a virtual generated branching fixture and does not yet drive physical junctions.
+One-train operation at simulation distances 5 and 12 is verified; fleet profiling
+is deferred. Multiplayer and dedicated-server recovery remain unverified.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -214,6 +214,15 @@ does not prove destruction: distinguish unavailable chunks from a cart confirmed
 missing in an entity-ticking area. On a fault, preserve remaining carts and cargo;
 never respawn inventory-bearing carts as an automatic repair.
 
+Full reload recovery remains an explicit required gate: preserve pre-reload
+normal service intent, next-stop cursor, target distance and exact remaining dwell;
+revalidate entities, geometry revision, profile cache and loading lease; then
+resume eligible automatic service after a bounded recovery phase. Explicit manual,
+signal and emergency holds must remain held, and recovery override must never
+resume automatically. Freeze dwell time while recovery is pending; do not infer
+that time spent out of the world was simulated. Current behavior intentionally
+pauses and requires manual start, so it does not complete this requirement.
+
 On reload/restart, initialize only absent data, reconcile controllers and carts,
 and validate reservations before resuming. Never start all trains automatically
 from an unverified saved `running` flag. Ownership uses player UUIDs, with explicit
@@ -268,13 +277,14 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify automatic station ordering, shared profile reuse, immutable route
-snapshots, holds and reload persistence on the generated loop. Then extend the
-compiler with a generated branching graph, explicit waypoints and time-sliced
-pathfinding, followed by following-block boundaries and occupancy/reservations.
-Compact segment geometry and multi-route chunk references remain design targets;
-fleet-scale performance testing is deferred at the user's request. Manual rail
-adapters and survival interactions follow the core backend gates.
+Next: validate branching choices, ordered waypoints, unreachable failures and
+job persistence through the command-driven topology fixture. Then add generated
+edge geometry, connect published paths to immutable service routes, and test
+actual multi-cart junction following. Complete automatic reload/dwell recovery
+before claiming production persistence. Following-block conflict groups and
+occupancy/reservations follow geometry-aware route compilation. Compact geometry,
+network chunk references and manual rail adapters remain subsequent backend work;
+fleet-scale profiling stays deferred at the user's request.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

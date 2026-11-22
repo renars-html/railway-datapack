@@ -17,3 +17,4 @@ execute unless data storage railway:state performance_schema run function railwa
 scoreboard players set #tick rw.sys 0
 scoreboard players set #sixteen rw.sys 16
 execute unless data storage railway:state routes_schema run function railway:internal/routes/init
+execute unless data storage railway:state graph_schema run function railway:internal/graph/init

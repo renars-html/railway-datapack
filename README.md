@@ -63,3 +63,10 @@ existing directed loop. `api/route/status` reports compilation, and
 Automatic service cycles station stops and dwell. Profiles compile once in bounded
 batches and are reused across compatible routes; general junction pathfinding is
 not implemented yet. See TESTING.md for exact command arguments.
+
+The topology backend now provides `api/graph/*` and `api/path/*` for immutable
+directed graphs and waypoint-aware shortest paths. `dev/graph_fixture` generates
+virtual branch data without changing terrain or train movement. Published topology
+paths are not loop-service route IDs; generated edge geometry and train integration
+come next. Reload during dwell still requires manual start; automatic recovery is
+an outstanding gate. See TESTING.md for the current backend-only test cycle.
