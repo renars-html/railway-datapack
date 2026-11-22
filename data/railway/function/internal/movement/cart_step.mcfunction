@@ -1,7 +1,5 @@
-scoreboard players set #bad rw.sys 0
-execute store result storage railway:scratch ctx.index int 1 run scoreboard players get @s rw.car
-function railway:internal/movement/validate_uuid with storage railway:scratch ctx
-execute unless score #bad rw.sys matches 0 run return 0
+# The mandatory pre-advance pass verified this exact entity/slot earlier this tick.
+execute unless score @s rw.validtick = #tick rw.sys run return 0
 scoreboard players operation #fine rw.sys = @s rw.car
 scoreboard players operation #fine rw.sys *= #offset rw.dev
 scoreboard players operation #fine rw.sys *= #thousand rw.sys

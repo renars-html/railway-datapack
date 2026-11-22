@@ -1,15 +1,13 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: station braking is repeatable in singleplayer within the player's
-estimated ±1 block, but head-based raw targets were confusing. Signal gating and
-reload persistence passed. New work adds saved, visible **train-center** station
-marks, a ~200-block generated loop, and an explicit emergency-start override;
-these await [cycle 8 tests](TESTING.md). Normal start/stop remain operational
-controls. Emergency start/stop are manual recovery tools. Accel/decel round to
-0.5 and clamp to 2–5 blocks/s². Default speed remains 7.5, maximum ~20 blocks/s.
-Tests require 20 carts; the large loop additionally supports up to 64. Multiplayer
-and dedicated-server recovery remain unverified.
+Status: the player confirms exact repeatable saved center stops across speeds
+and deceleration profiles, plus singleplayer reload persistence. This version
+optimizes the per-cart hot path and adds persistent test-loop chunk leases and
+runtime workload reporting, awaiting [cycle 9 tests](TESTING.md). High-double-digit
+train capacity has NOT been benchmarked. The target is now 80–99 independent
+trains (normally 20 carts, up to 64) with all registered railway chunks kept loaded;
+see [PERFORMANCE.md](PERFORMANCE.md). Multiplayer recovery remains unverified.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -194,11 +192,19 @@ scheduled functions must restore executor/dimension/context explicitly.
 
 ## Chunk loading, recovery, and multiplayer
 
-Default to **no automatic force loading**. A train may move only when all carts,
-the required track footprint, and its stopping envelope are entity-ticking and
-available. A block/chunk being readable does not alone prove its entities are
-ticking. Establish the readiness checks and conservative boundary policy in
-milestones 0 and 6; stop before entering unavailable territory.
+Keep **all registered railway chunks persistently loaded**, per the user's
+network requirement. Acquire native tickets at route/network publication, not
+on each train tick. Deduplicate chunks across route revisions with reference
+counts, track pre-existing versus pack-owned tickets, preserve ownership across
+reload/restart, and release only the pack's last reference. Add a configurable
+network/global chunk budget, reporting, partial-acquisition rollback and cleanup.
+Reject a new route publication if its full required loading footprint exceeds
+budget. The current bounded test-loop lease is the first adapter for this design.
+
+A train still needs validated membership, geometry and an entity-ticking stopping
+envelope. Ticket presence alone is not a proof that every entity is already
+available immediately after a load/restart; reconcile before starting. Registration defines the loading footprint; physical rail blocks outside the
+registered network are not discovered yet.
 
 Persist train state so a completely unloaded train remains registered. Partial
 unloading suspends the train; do not move only the loaded carts. Retain occupied
@@ -211,8 +217,24 @@ On reload/restart, initialize only absent data, reconcile controllers and carts,
 and validate reservations before resuming. Never start all trains automatically
 from an unverified saved `running` flag. Ownership uses player UUIDs, with explicit
 sharing/administration hooks and per-owner quotas for the later survival layer.
-Serialize competing route edits and reservations. Optional force loading, if
-added later, needs bounded tickets, ownership, and cleanup; it is not a prerequisite.
+Serialize competing route edits and reservations. Persistent loading needs bounded tickets, ownership, reference counting and
+cleanup; it is now a network prerequisite, rather than an optional feature.
+
+## Scale target and architecture priorities
+
+Target high-double-digit fleets explicitly: benchmark 10/25/50/80/99 independent
+trains, normally 20 carts each and optionally 64, with dispersed corridors and
+congested yards. No capacity claim until MSPT/CPU profiles and unique loaded-chunk
+counts are recorded on reference hardware. The total 50 ms tick budget must retain
+headroom for survival players, mobs and redstone. Dense sampled paths, per-train
+cross-entity scans, full per-cart command motion and vanilla entity ticking are
+current scaling risks; reducing command counts alone is not a timing benchmark.
+
+Prioritize compact compiled rail segments and route spatial buckets over extending
+the dense fixture format. Avoid repeated whole-dimension selection per train.
+Batch dispatch/cart membership once where possible and reuse current-tick UUID
+verification. Keep creation-time route/profile compilation separate from the hot
+path. Benchmark before committing to the same per-cart controller at fleet scale.
 
 ## Tick budget and verification
 
@@ -245,13 +267,13 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify stable marked center stops and the explicit recovery override on
-the larger loop. Then prioritize a generated test network graph and route compiler
-with stations/waypoints, shared profile-specific braking points, and following-block
-boundaries. Add occupancy/reservations and conditional signal approaches after
-route compilation. Complete backend behavior before manual rail-building/discovery
-adapters and survival interactions. Server/disconnect recovery is a separate
-validation gate when multiplayer testing becomes available.
+Next: verify optimized motion is unchanged, persistent loading works while the
+player is away, and obtain initial singleplayer MSPT/CPU measurements. Then build
+a generated multi-route graph fixture and compact shared route compiler, including
+profile-specific station braking points and following-block boundaries. Add
+unique-chunk reference counting for that network and independent-train load tests
+before claiming fleet-scale capacity. Occupancy/reservations follow route
+compilation; manual rail adapters and survival interactions remain later work.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

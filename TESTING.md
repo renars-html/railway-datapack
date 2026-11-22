@@ -1,13 +1,41 @@
-# Test cycle 8: large loop, center stations and recovery override
+# Test cycle 9: optimized hot path and persistent loading
 
-The previous signal/manual holds and reload persistence passed in singleplayer.
-The player observed station stopping within roughly ±1 block and confusing apparent
-station placement. Saved markers now explicitly target the train's **path midpoint**,
-not its head. Check the two middle carts of a 20-cart train, rather than the front.
+The player confirms cycle 8 passes, with exact repeatable center stops across
+speeds/deceleration rates and working reload persistence. No rebuild is required.
+Replace the pack and `/reload` near the existing 20-cart train.
 
-Replace the datapack folder and `/reload`; keep the existing train and fixtures.
-Use simulation distance **8 chunks or higher** for this larger loaded-area test.
-No dedicated server is required. Replace ID in commands with your train's number.
+## New checks
+
+1. Ride one lap at 7.5 and one at 20 blocks/s, then repeat one saved center-station
+   stop. Interpolation and validation were optimized; behavior, spacing, marker
+   alignment, passengers and cargo must remain unchanged.
+2. Run `/function railway:dev/performance_report`. It should show the loaded bound
+   controller and registered carts. Read `/tick query` directly while held/moving
+   and on approach. Report its average tick time, CPU model if known, and fixed
+   render/simulation distances. See [PERFORMANCE.md](PERFORMANCE.md) for optional
+   CPU profiling and meaningful baseline comparisons.
+3. Enable persistent loading:
+
+   ```mcfunction
+   /function railway:api/network/load_test_loop
+   ```
+
+   Expect a reported chunk count (at most 24 on the large fixture). Leave the
+   train running and travel/teleport 300+ blocks away. Inspect twice: it should
+   still have 20 loaded carts and changing progress. Return and check cargo and
+   center stopping. Reload/quit preserves tickets but still pauses the train;
+   start it explicitly as before, including when away from the loop.
+4. Once, test `/function railway:api/network/unload_test_loop`: trains should
+   immediately hold, tickets added by this pack should be released, and existing
+   externally forced chunks must remain forced. Re-enable loading afterwards for
+   future tests. Release the lease before using large_loop again. Optional: run
+   the loading test on a negative-coordinate fixture to verify chunk boundaries.
+
+Full route/network loading and high-double-digit capacity are not established
+by this single-loop test. Do not spawn dozens of trains on top of one another as
+a capacity test; collision density would make the result unrepresentative.
+
+## Existing fixture setup and controls (reference)
 
 ## Build a realistic-size fixture
 
@@ -111,5 +139,5 @@ The track remains generated geometry, not a scan of physical rails. Manual rail
 edits do not reroute trains. Route graph compilation and profile-specific cached
 braking points come next; the current stop planner calculates the discrete safe
 approach dynamically. Following-block occupancy/reservations are not implemented:
-`set_signal` is still an operator-supplied backend condition. Stay near the loop;
-chunk-boundary safety and arbitrary block-change detection remain future gates.
+`set_signal` is still an operator-supplied backend condition. Without a loading
+lease, stay near the loop; readiness reconciliation and chunk-boundary safety and arbitrary block-change detection remain future gates.
