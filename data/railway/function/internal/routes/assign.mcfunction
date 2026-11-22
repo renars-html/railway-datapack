@@ -1,3 +1,5 @@
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=1..}] run tellraw @s {"text":"[Railway] Clear_path before using loop service/station snapshots. Branch station integration is the next layer.","color":"red"}
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=1..}] run return 0
 $execute unless data storage railway:routes routes.r$(route){state:"ready"} run return 0
 $execute store result score #route_profile rw.sys run data get storage railway:routes routes.r$(route).profile
 execute unless score #route_profile rw.sys = #profile rw.sys run return 0

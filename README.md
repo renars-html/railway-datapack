@@ -67,6 +67,13 @@ not implemented yet. See TESTING.md for exact command arguments.
 The topology backend now provides `api/graph/*` and `api/path/*` for immutable
 directed graphs and waypoint-aware shortest paths. `dev/graph_fixture` generates
 virtual branch data without changing terrain or train movement. Published topology
-paths are not loop-service route IDs; generated edge geometry and train integration
-come next. Reload during dwell still requires manual start; automatic recovery is
+paths are distinct from loop-service route IDs. Closed paths on the generated
+branch fixture can now be compiled and assigned as physical train geometry. Reload during dwell still requires manual start; automatic recovery is
 an outstanding gate. See TESTING.md for the current backend-only test cycle.
+
+`dev/branch_loop` builds the split/detour/merge template (76×36×6 destructive build
+volume). `api/path/compile_geometry {path:P}` compiles a ready closed topology path;
+`geometry_status` reports readiness. `api/train/assign_path {train:T,path:P}` selects
+shared geometry for a stopped/unoccupied train; `clear_path` restores the base
+loop. Stations/service on graph geometry and runtime switch locking are the next
+layers. Failed asynchronous path/geometry jobs now announce failure in chat.

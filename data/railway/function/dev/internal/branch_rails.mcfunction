@@ -1,0 +1,7 @@
+fill ~30 ~0 ~3 ~30 ~0 ~15 minecraft:rail[shape=north_south]
+setblock ~30 ~0 ~16 minecraft:rail[shape=north_east]
+fill ~31 ~0 ~16 ~59 ~0 ~16 minecraft:rail[shape=east_west]
+setblock ~60 ~0 ~16 minecraft:rail[shape=north_west]
+fill ~60 ~0 ~3 ~60 ~0 ~15 minecraft:rail[shape=north_south]
+setblock ~30 ~0 ~2 minecraft:rail[shape=east_west]
+setblock ~60 ~0 ~2 minecraft:rail[shape=east_west]

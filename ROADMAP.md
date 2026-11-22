@@ -1,14 +1,15 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player reports ordered loop service, shared braking profiles and
-normal operations pass. Reload during dwell currently pauses service and requires
-manual start; full automatic recovery is explicitly outstanding. The new topology
-layer adds immutable directed graphs, waypoint-aware time-sliced Dijkstra and
-published reusable node/edge paths, awaiting [cycle 11 tests](TESTING.md). It uses
-a virtual generated branching fixture and does not yet drive physical junctions.
-One-train operation at simulation distances 5 and 12 is verified; fleet profiling
-is deferred. Multiplayer and dedicated-server recovery remain unverified.
+Status: the player confirms topology shortest paths/costs and mid-compile
+reload recovery pass; failed queued jobs now announce failure proactively. The
+new geometry layer compiles selected graph edges into closed circuits, assigns
+shared geometry per controller, and generates a physical split/detour/merge test
+fixture, awaiting [cycle 12 tests](TESTING.md). Loop service remains separate from
+graph geometry until station/profile integration. Current fixture switching is
+static at stopped assignment; tail-clear switching and reservations remain future
+work. Automatic reload service recovery and multiplayer validation are outstanding.
+Fleet profiling remains deferred.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -277,14 +278,15 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: validate branching choices, ordered waypoints, unreachable failures and
-job persistence through the command-driven topology fixture. Then add generated
-edge geometry, connect published paths to immutable service routes, and test
-actual multi-cart junction following. Complete automatic reload/dwell recovery
-before claiming production persistence. Following-block conflict groups and
-occupancy/reservations follow geometry-aware route compilation. Compact geometry,
-network chunk references and manual rail adapters remain subsequent backend work;
-fleet-scale profiling stays deferred at the user's request.
+Next: verify the 20-cart train physically follows both graph-selected circuits,
+including branch/merge continuity, per-controller lengths and reload persistence.
+Then connect graph-path geometry to immutable service routes and station-center
+snapshots (with path occurrence indices for repeated visits), and key braking
+profile caches by selected geometry as well as cruise/deceleration. Complete the
+automatic reload/dwell recovery gate after that service integration. Runtime
+switch actions/tail-clear locks, following-block conflict groups and occupancy/
+reservations follow. Full-network chunk references, compact edge runtime geometry,
+manual rail adapters and survival controls remain later backend work.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

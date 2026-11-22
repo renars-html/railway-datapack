@@ -11,6 +11,7 @@ $data modify storage railway:scratch settings set value {speed:$(speed),accel:$(
 scoreboard players set #cruise rw.sys 0
 execute store result score #cruise rw.sys run data get storage railway:scratch settings.speed 1000
 execute unless score #cruise rw.sys matches 50..20000 run return 0
+scoreboard players operation #requested_speed rw.sys = #cruise rw.sys
 scoreboard players operation #cruise rw.sys *= #thousand rw.sys
 scoreboard players operation #cruise rw.sys /= #speed_factor rw.sys
 scoreboard players set #accel rw.sys 0

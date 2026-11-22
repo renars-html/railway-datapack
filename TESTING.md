@@ -1,96 +1,118 @@
-# Test cycle 11: branching-graph pathfinding backend
+# Test cycle 12: graph-selected physical branching movement
 
-The player confirms automatic ordered loop service and cache reuse pass. Reload
-currently pauses normal service, including during dwell, and requires `start`.
-Automatic restoration of service intent/dwell timing remains a roadmap gate.
-This cycle does not change that policy or the working loop movement.
+The player confirmed correct topology paths/costs and mid-compile reload recovery.
+Failed queued path jobs now also announce their failure in chat, rather than only
+exposing it through status. The new slice compiles selected graph edges into shared
+closed-circuit geometry and lets the registered train follow that geometry.
 
-Update and `/reload`. These tests create **virtual topology data only**: they do
-not place rails, move trains, alter stations, or change your assigned service route.
-No performance test or repeat of the previous movement tests is needed.
+Replace the pack and `/reload`. Use your existing 20-cart train; do not replace its
+members. Train IDs, graph IDs and path IDs are different counters. Substitute their
+numeric values in the commands below. Keep the world unpaused while jobs compile.
 
-## Generate the branching fixture
+## Create the generated branch fixture
+
+1. Stop and wait until stationary, dismount, and clear the old service route:
+
+   ```mcfunction
+   /function railway:api/train/stop {train:TRAIN}
+   /function railway:api/train/clear_route {train:TRAIN}
+   /function railway:api/network/unload_test_loop
+   ```
+
+   Ignore unload returning 0 if no lease exists. Keep the old fixture/controller
+   and all train members loaded. Choose clear flat ground adjacent to the old loop.
+2. Run:
+
+   ```mcfunction
+   /function railway:dev/branch_loop
+   ```
+
+   **Overwrites a 76×36×6 volume extending +X/+Z at your feet.** It relocates the
+   existing bound train and builds the outer loop plus a U-shaped inner detour,
+   split and merge. It also prints a **new sealed graph ID**. The prior virtual
+   graph remains unchanged. Existing stations/routes belong to the old geometry
+   revision and must not be used on this new fixture. No carts/cargo are replaced.
+3. Re-enable persistent loading with `api/network/load_test_loop` if desired.
+   The same chunk rectangle covers both branches.
+
+## Select and ride the outer circuit
 
 ```mcfunction
-/function railway:dev/graph_fixture
+/function railway:api/path/create {graph:GRAPH,from:1,to:1,via:[3]}
 ```
 
-Note the printed **graph ID**, which is independent of train/service-route IDs.
-Expect a sealed graph with 9 nodes and 10 directed edges. Rerunning inspects the
-same graph rather than creating another. Its weighted branches are:
-
-- 1 → 2 → 3 → 6: cost 30.
-- 1 → 2 → 4 → 5 → 6: cost 25 (shortest).
-- 1 → 7 → 6: cost 55.
-- 6 → 1: cost 20; 6 → 8: cost 7.
-- Node 8 is a dead end; node 9 is isolated.
-
-Costs are positive integer test weights, not physical block distances yet.
-
-## Path selection and ordered waypoints
-
-Replace GRAPH with the graph ID; replace PATH with each newly printed path ID.
-Only one path compilation job is accepted at a time. Wait for completion before
-submitting the next. The unpaused world must tick; these small jobs take seconds.
+Wait for the ready message, or check `api/path/status {path:PATH}`. Expect nodes
+`[1,2,3,1]`, edges `[1,2,3]`. Then compile its geometry:
 
 ```mcfunction
-/function railway:api/path/create {graph:GRAPH,from:1,to:6,via:[]}
-/function railway:api/path/status {path:PATH}
+/function railway:api/path/compile_geometry {path:PATH}
+/function railway:api/path/geometry_status {path:PATH}
 ```
 
-Expect `state:"ready"`, `nodes:[1,2,4,5,6]`, `edges:[1,4,5,6]`, `cost:25`.
+Wait until geometry state is `ready` (about 10–12 seconds of ticking at 20 TPS).
+It should have **1,598 samples**, switch_mode 0. Stop/dismount before assigning:
 
-Repeat with these arguments and compare ready results:
+```mcfunction
+/function railway:api/train/assign_path {train:TRAIN,path:PATH}
+/function railway:api/train/start {train:TRAIN}
+```
 
-| From | To | Via | Expected nodes | Cost |
-| --- | --- | --- | --- | --- |
-| 1 | 6 | `[3]` | `[1,2,3,6]` | 30 |
-| 1 | 6 | `[7]` | `[1,7,6]` | 55 |
-| 1 | 8 | `[6,2]` | `[1,2,4,5,6,1,2,4,5,6,8]` | 77 |
-| 6 | 6 | `[]` | `[6]` with empty edges | 0 |
+Assignment repositions the held train at the new circuit origin and sets static
+switch states. Board before starting if riding. Ride two laps at 7.5 blocks/s and
+then at 20 using configure_motion. Expect all 20 carts to follow the outer loop,
+going straight through the split/merge without entering the detour. Watch the
+middle/rear carts, spacing, riders and cargo through both junctions.
 
-`via` nodes are mandatory **in order**, but do not imply stopping/dwell. The same
-node can legitimately appear more than once as consecutive legs traverse a cycle.
+## Select the inner detour
 
-## Failure and persistence checks
+Create a second closed path with `from:1,to:1,via:[4,3]`. Expect nodes
+`[1,2,4,5,3,1]`, edges `[1,4,5,6,3]`. Compile its geometry and wait for ready.
+It should have **1,812 samples**, switch_mode 1, about **226.485 blocks** instead
+of the outer circuit's **199.657 blocks**.
 
-- From 8 to 1, or from 1 to 9, with `via:[]`: expect `state:"failed"`, an error,
-  and **no partial nodes/edges published**.
-- From 1 to 6 with `via:[99]`: invalid waypoint must fail similarly. The existing
-  valid paths and loop service must be unchanged.
-- Start the `[6,2]` job and immediately `/reload`. It should eventually produce
-  the same ready path and cost 77. A quit/reopen during compilation should work
-  the same way. Normal trains still pause on reload and require manual start.
-- Inspect an earlier ready path after other jobs: contents must remain unchanged.
-- Try editing the sealed fixture:
+Stop, wait, dismount and assign this second path to the same train. Start and
+repeat both speeds. Every cart should take the U-shaped inner branch, merge back
+onto the outer track, and complete the loop without jumping directly between
+junctions, splitting the train, accumulating spacing error or taking the straight
+shortcut. Unchanged commanded speed should remain approximately unchanged in
+physical blocks/second despite the different circuit length.
 
-  ```mcfunction
-  /function railway:api/graph/add_edge {graph:GRAPH,from:1,to:8,cost:1}
-  ```
+## Persistence and recovery
 
-  Expect return 0. Inspect with `api/graph/inspect {graph:GRAPH}`: still 10 edges.
-  Repeating the original 1→6 query must still give cost 25.
+- `/reload` and quit/reopen while riding the detour: immediately hold, retain
+  geometry path, exact progress, members, passengers and cargo. Manual start must
+  continue on the **detour**, not revert to the outer default path. Inspect should
+  show the geometry path ID. Check progress/sampling past the outer loop's length:
+  the longer detour must not wrap early or jump when inspecting/starting.
+- Reload during geometry compilation: resume and publish the same ready result.
+  Recompiling an already-ready geometry is idempotent and reports that it exists.
+- Signal/manual holds and emergency start/stop should retain their prior behavior
+  on either circuit. Emergency override must still follow the selected geometry.
+- Retry the prior unreachable topology query on the virtual graph. In addition
+  to failed status, expect a red failure message without manually inspecting.
 
-Report returned states, node/edge sequences, costs, persistence and any command/
-function-loading errors. No full new rail-layout or train ride test is required.
+Report outer/detour choice for the entire train, branch/merge spacing, high-speed
+behavior, inspection/reload persistence, inventory and any command-loading errors.
+No fleet performance test is needed.
 
-## Backend scope and API
+## Scope and return to loop service
 
-`api/graph/create`, `add_node {graph:G,node:N}`, `add_edge
-{graph:G,from:A,to:B,cost:C}`, `seal {graph:G}` and `inspect {graph:G}` build and
-inspect topology. Nodes are integer IDs 1–64; edges are directed, with positive
-integer costs 1–1,000,000 and at most 256 edges. A sealed graph is immutable;
-changes require a new graph ID, so published paths remain stable.
+This is still one bound train on the fixture. Switches are set only during stopped,
+unoccupied assignment, not flipped while a train is crossing. A circuit requiring
+both straight and detour switch modes in different laps is explicitly rejected
+until runtime switch actions/tail-clear locks are implemented. Topology paths stay
+valid even if geometry compilation rejects an unsupported case.
 
-The Dijkstra worker initializes labels, scans a bounded minimum frontier, relaxes
-outgoing edges and reconstructs predecessors. Each tick processes at most eight
-node/edge/backtracking operations in its current phase. State, cursors, labels and
-partial results live in storage; there are no worker entities or world scans.
-Up to 16 via nodes are supported. Only complete successful paths become ready.
+Graph geometry currently supports closed circuits on this generated template.
+It is immutable, reusable by reference, and sampled once in bounded 16-frame batches;
+per-train progress selects its own geometry rather than overwriting the shared loop.
+It supports up to 8,192 samples and the existing 64-cart registration bound.
+No runtime pathfinding occurs while travelling.
 
-Published **path IDs are topology results**, not the existing loop-service route
-IDs. Do not pass them to train/assign_route yet: the next layer adds generated edge
-geometry and makes the route compiler consume these paths for actual branching
-movement. Physical conflict groups, occupancy/reservations, manual rail discovery,
-and survival controls remain later work. Current trains continue using the
-previously verified loop route controller.
+Saved loop-station/service-route snapshots cannot yet be used on graph geometry:
+those APIs deliberately reject it. The next integration adds graph-aware station
+positions, profile caches and automatic service. To return to the base outer loop,
+stop, dismount and use `api/train/clear_path {train:TRAIN}`. It resets progress and
+switches to straight; loop station/service APIs become available again. Mark fresh
+stations/create fresh routes on the new fixture revision. Automatic reload resume
+remains outstanding; manual start after reload is still required.

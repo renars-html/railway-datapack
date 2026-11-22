@@ -14,3 +14,5 @@ scoreboard players set @s rw.cruise 7500000
 scoreboard players operation @s rw.cruise /= #speed_factor rw.sys
 scoreboard players set @s rw.signal 0
 scoreboard players set @s rw.station 0
+scoreboard players set @s rw.geom 0
+function railway:internal/geometry/reset_fixture_switches

@@ -8,3 +8,4 @@ execute if score #particle_clock rw.sys matches 20.. in minecraft:overworld as @
 execute if score #particle_clock rw.sys matches 20.. run scoreboard players set #particle_clock rw.sys 0
 execute if data storage railway:routes active_job run function railway:internal/routes/worker
 execute if data storage railway:graph active_job run function railway:internal/path/worker
+execute if data storage railway:geometry active_job run function railway:internal/geometry/worker
