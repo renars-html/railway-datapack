@@ -8,6 +8,7 @@ execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] S
 execute unless score #valid rw.sys matches 1 run return 0
 $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run scoreboard players operation @s rw.epoch = #epoch rw.sys
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.emerg 0
+$scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.auto 1
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.run 1
 $data modify storage railway:state trains.t$(id).state set value "running"
 data modify storage railway:api result set value {ok:1b}

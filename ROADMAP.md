@@ -1,13 +1,14 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player confirms exact repeatable saved center stops across speeds
-and deceleration profiles, plus singleplayer reload persistence. This version
-optimizes the per-cart hot path and adds persistent test-loop chunk leases and
-runtime workload reporting, awaiting [cycle 9 tests](TESTING.md). High-double-digit
-train capacity has NOT been benchmarked. The target is now 80–99 independent
-trains (normally 20 carts, up to 64) with all registered railway chunks kept loaded;
-see [PERFORMANCE.md](PERFORMANCE.md). Multiplayer recovery remains unverified.
+Status: the player confirms the one-train loading/movement tests pass at
+simulation distances 5 and 12 with 20 TPS; fleet-scale profiling is explicitly
+deferred. The next backend slice adds immutable ordered loop routes, resumable
+shared braking-profile compilation, automatic station cycling and per-train route
+assignment/cursors, awaiting [cycle 10 tests](TESTING.md). This is a directed-cycle
+compiler, not general junction pathfinding. Geometry is shared, and compatible
+routes reuse a braking table instead of calculating it per train/lap. Multiplayer
+recovery and high-double-digit fleet capacity remain unverified.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -267,13 +268,13 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify optimized motion is unchanged, persistent loading works while the
-player is away, and obtain initial singleplayer MSPT/CPU measurements. Then build
-a generated multi-route graph fixture and compact shared route compiler, including
-profile-specific station braking points and following-block boundaries. Add
-unique-chunk reference counting for that network and independent-train load tests
-before claiming fleet-scale capacity. Occupancy/reservations follow route
-compilation; manual rail adapters and survival interactions remain later work.
+Next: verify automatic station ordering, shared profile reuse, immutable route
+snapshots, holds and reload persistence on the generated loop. Then extend the
+compiler with a generated branching graph, explicit waypoints and time-sliced
+pathfinding, followed by following-block boundaries and occupancy/reservations.
+Compact segment geometry and multi-route chunk references remain design targets;
+fleet-scale performance testing is deferred at the user's request. Manual rail
+adapters and survival interactions follow the core backend gates.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

@@ -18,3 +18,6 @@ scoreboard players operation @s rw.accel /= #ten rw.dev
 scoreboard players operation @s rw.brake /= #ten rw.dev
 scoreboard players operation @s rw.accel *= #ten rw.dev
 scoreboard players operation @s rw.brake *= #ten rw.dev
+execute unless score @s rw.route matches 0.. run scoreboard players set @s rw.route 0
+execute unless score @s rw.stopidx matches 0..15 run scoreboard players set @s rw.stopidx 0
+execute unless score @s rw.auto matches 0..1 run scoreboard players set @s rw.auto 0

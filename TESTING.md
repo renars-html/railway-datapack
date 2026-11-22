@@ -1,143 +1,105 @@
-# Test cycle 9: optimized hot path and persistent loading
+# Test cycle 10: shared loop routes and automatic station service
 
-The player confirms cycle 8 passes, with exact repeatable center stops across
-speeds/deceleration rates and working reload persistence. No rebuild is required.
-Replace the pack and `/reload` near the existing 20-cart train.
+The player reports the previous one-train tests worked at simulation distances
+5 and 12, maintaining 20 TPS. Fleet-scale capacity remains unmeasured and testing
+it is deferred. This cycle tests reusable route compilation and following only.
 
-## New checks
+Update the pack and `/reload`. Keep the current 20-cart bound train, large loop
+and loading lease. Do not rebuild the fixture. Use numeric train/route IDs below.
 
-1. Ride one lap at 7.5 and one at 20 blocks/s, then repeat one saved center-station
-   stop. Interpolation and validation were optimized; behavior, spacing, marker
-   alignment, passengers and cargo must remain unchanged.
-2. Run `/function railway:dev/performance_report`. It should show the loaded bound
-   controller and registered carts. Read `/tick query` directly while held/moving
-   and on approach. Report its average tick time, CPU model if known, and fixed
-   render/simulation distances. See [PERFORMANCE.md](PERFORMANCE.md) for optional
-   CPU profiling and meaningful baseline comparisons.
-3. Enable persistent loading:
+## Create a reusable route
+
+1. Ensure saved stations **1 and 2** exist on different straights. If needed, stand
+   beside a desired center stopping point and use:
 
    ```mcfunction
-   /function railway:api/network/load_test_loop
+   /function railway:dev/station_here {station:2}
    ```
 
-   Expect a reported chunk count (at most 24 on the large fixture). Leave the
-   train running and travel/teleport 300+ blocks away. Inspect twice: it should
-   still have 20 loaded carts and changing progress. Return and check cargo and
-   center stopping. Reload/quit preserves tickets but still pauses the train;
-   start it explicitly as before, including when away from the loop.
-4. Once, test `/function railway:api/network/unload_test_loop`: trains should
-   immediately hold, tickets added by this pack should be released, and existing
-   externally forced chunks must remain forced. Re-enable loading afterwards for
-   future tests. Release the lease before using large_loop again. Optional: run
-   the loading test on a negative-coordinate fixture to verify chunk boundaries.
-
-Full route/network loading and high-double-digit capacity are not established
-by this single-loop test. Do not spawn dozens of trains on top of one another as
-a capacity test; collision density would make the result unrepresentative.
-
-## Existing fixture setup and controls (reference)
-
-## Build a realistic-size fixture
-
-1. Stop and wait until stationary, then dismount. Choose empty flat space adjacent
-   to the old loop, keeping it and all registered members loaded. Run:
+   Wait for the marker/save message. Avoid editing station marks during compilation.
+2. Create the ordered service route:
 
    ```mcfunction
-   /function railway:dev/large_loop
+   /function railway:api/route/create {stops:[1,2],speed:7.5,accel:2.5,decel:2.5,dwell:100}
    ```
 
-   **This overwrites a 76×36×6 volume at your feet**, extending +X/+Z. The new loop
-   is **199.657 blocks**, about five times the old 39.657. It includes straights,
-   curves, a hill and powered rails. A bound train is relocated and held without
-   replacing its carts or cargo; the old rails remain. If there is no bound train,
-   use `dev/long_train {train:ID}` afterwards. The new loop fits **up to 64 carts**;
-   use 20 for the required tests. A return of 0 means the original fixture/train
-   is not loaded, is still moving, has missing members, or has a rider.
-2. Apply the normal operating profile:
+   Note the printed **route ID**. The job processes stops and builds a shared
+   braking table in bounded batches. Keep the world unpaused while waiting:
+   first compilation is about 5 seconds at 7.5 blocks/s, up to ~13 seconds at 20.
 
    ```mcfunction
-   /function railway:api/train/configure_motion {train:ID,speed:7.5,accel:2.5,decel:2.5}
-   /function railway:api/train/start {train:ID}
+   /function railway:api/route/status {route:ROUTE}
    ```
 
-   Ride three laps and stop/restart. Watch spacing, corner behavior, rider/cargo
-   retention and any slowdown. Inspect speed values. Accel/decel now round to
-   the nearest **0.5** and clamp between **2 and 5 blocks/s²**; e.g. 1 becomes 2,
-   3.2 becomes 3, 3.3 becomes 3.5, and 8 becomes 5. Default rates are still 2.5.
-
-## Pick a stable station location
-
-1. Stop the train. Stand on or next to a **long straight section** where you want
-   the **center of the train** to stop, and run:
+   Expect `state:"ready"`, two frozen station samples, forward leg distances,
+   center braking points, and a cache key. A missing/invalid station must produce
+   `state:"failed"` instead; failed/compiling routes cannot be assigned.
+3. Stop the train and wait until stationary. Assign and start:
 
    ```mcfunction
-   /function railway:dev/station_here {station:1}
+   /function railway:api/train/assign_route {train:TRAIN,route:ROUTE}
+   /function railway:api/train/start {train:TRAIN}
    ```
 
-   Wait for the saved message and repeating end-rod particle marker (~1.3 seconds
-   on the large loop). The closest point of the stored path is selected, with
-   roughly 0.125-block sampling resolution. Station IDs are integers 1–64.
-2. Request that marked station, then start if currently held:
+   Expect **station 1 → dwell 5 seconds → station 2 → dwell → repeat**, without
+   manually requesting station_stop again. Run at least two complete cycles.
+   Both train-center alignments, spacing, riders and cargo must remain unchanged.
 
-   ```mcfunction
-   /function railway:api/train/station_stop {train:ID,station:1,dwell:100}
-   /function railway:api/train/start {train:ID}
-   ```
+## State and reuse checks
 
-   Expect the midpoint between carts **9 and 10** (indices 0–19) to line up with
-   the marker along the track, a 5-second dwell, then departure. Inspect should
-   show distance 0 while dwelling. The head is about **15.4 blocks beyond** the
-   center marker; this is intentional. Marker and head progress samples differ.
-3. Repeat after departing and again from another location/speed. The **same train
-   center** should stop at the **same marker**, even though travel time differs.
-   If the nearest pass is too close for normal braking, it skips to the next lap
-   rather than rejecting or abruptly stopping. At rest, a nearby station can
-   legitimately require only a short trip; the marked location must remain fixed.
-4. Repeat with speed 20 and decel profiles 2, 2.5 and 5 (configure only after the
-   previous dwell completes). Mark a second station on another straight with
-   `station:2` and test it. Report center error relative to the marker and whether
-   repeated stops drift. Test signal holds and reload/quit persistence during an
-   approach as before. Center means midpoint **along the route**, not a bounding
-   box midpoint when the train bends around corners.
+- Inspect the train: service route ID and next stop index should be shown. The
+  index advances once on arrival and does not advance repeatedly during dwell.
+- Stop/start during an approach and during dwell. Use the existing blocked signal
+  API. Stops/signals should pause service without losing the target or advancing
+  the station order. Clearing a signal must not override a manual stop.
+- `/reload` and quit/reopen during approach/dwell: train immediately pauses and
+  retains route, next stop, distance, wait time and inventory. Start resumes the
+  appropriate next service step. A pending compilation also resumes after reload.
+- Emergency start bypasses route service and cancels the pending station plan;
+  normal start returns to automatic service, at the current next-stop index.
+- Create another route with `stops:[2,1]`, `speed:7.5`, `accel:3.0`, `decel:2.5`,
+  `dwell:100`. Its status should quickly become ready with **the same cache key**
+  and `cache_reused:1b`. Acceleration can differ because the shared braking table
+  depends on geometry, cruise speed and deceleration. No train assignment changes
+  merely because a second route was created. Stop and assign it to test reversed
+  station order (travel direction still stays forward around the loop).
 
-`station_stop` now takes a saved **station ID**, replacing the old raw `sample`
-argument. A marker is tied to its route revision. Running large_loop again moves
-and rebuilds the geometry, invalidates prior station marks, cancels an armed stop,
-and holds the train; place fresh station marks afterwards. Reload preserves the
-current loop profile, stations and valid approach/dwell state.
+## Manual control and immutable snapshots
 
-## Emergency recovery override
+While a service route is assigned, manual station_stop and configure_motion are
+refused: route speed/rates and station snapshots remain fixed and shared. To go
+back to manual operation, stop, wait until stationary, then:
 
 ```mcfunction
-/function railway:api/train/emergency_start {train:ID}
+/function railway:api/train/clear_route {train:TRAIN}
 ```
 
-Expect an **immediate jump to maximum speed (~20 blocks/s)**, bypassing normal
-acceleration, manual/signal holds, emergency stop and station dwell/approach. The
-station plan is cancelled; the signal's stored blocked state is retained but
-ignored during override. Inspect shows `override:1`.
+The train remains held; manual station/configuration APIs work again. To change
+service settings, create another route and assign it while stopped. Moving a saved
+station marker does not move a stop in an already-published route; create a new
+route to capture the new location. Geometry relocation invalidates old routes,
+which must not start moving the train on mismatched geometry.
 
-Test with a blocked signal and during dwell. `api/train/stop` exits override and
-service-brakes; `api/train/start` exits override and restores normal rules, so a
-still-blocked signal brakes/holds the train again. `emergency_stop` always exits
-it and stops immediately. Reload and quit/reopen also cancel override and pause.
+Report ordered service, exact center arrivals, dwell/cursor behavior, independent
+holds, persistence, cache reuse and rejected invalid routes. No performance
+profiling or repeat of unrelated composition/loading tests is needed.
 
-This deliberately allows the **remaining valid members** of a damaged train to
-move for recovery. It never invents missing carts, loads chunks or moves an entity
-whose UUID fails the stored membership check. Do not destroy cargo to test this;
-an optional test may remove one empty cart, run override, then emergency-stop and
-use rebuild to repair the composition.
+## Current scope
 
-## Report and limitations
+This first compiler uses the existing **directed cycle graph**. Each forward leg
+has one possible path, so resolving station positions and directed distances is
+the route calculation. Geometry remains shared, not copied per train. Per-speed
+braking thresholds are computed once per profile (32 velocities per background
+tick), shared by all compatible routes/trains, and looked up while approaching.
+Cruise-distance gating skips the approach search while braking is unnecessary.
 
-Report large-loop movement, repeated **center-marker** stopping error at each
-rate, override/normal control transitions, signal behavior and persistence. No
-need to repeat unaffected spawning/composition tests. Optional: run a 64-cart
-composition on the large loop after the 20-cart tests and report performance.
+Route IDs are monotonic, published routes immutable, and only one compiler job is
+accepted at a time. Stops lists have 2–16 integer station IDs; repeated IDs mean
+another forward lap. Tables remain shared across reload. Partial jobs/tables are
+never assignable. Runtime follows snapshots with constant-sized per-train state;
+it does not rerun graph search or rebuild a braking profile per lap.
 
-The track remains generated geometry, not a scan of physical rails. Manual rail
-edits do not reroute trains. Route graph compilation and profile-specific cached
-braking points come next; the current stop planner calculates the discrete safe
-approach dynamically. Following-block occupancy/reservations are not implemented:
-`set_signal` is still an operator-supplied backend condition. Without a loading
-lease, stay near the loop; readiness reconciliation and chunk-boundary safety and arbitrary block-change detection remain future gates.
+General branching/junction pathfinding, waypoints, following-block occupancy,
+reservations, compact segment geometry, multi-network chunk ownership and manual
+rail discovery are not implemented in this cycle. The next backend phase adds a
+generated branching test graph rather than reading manually placed rails.

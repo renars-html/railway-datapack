@@ -1,3 +1,4 @@
+scoreboard players set @s rw.auto 0
 function railway:internal/movement/ensure_motion
 scoreboard players set @s rw.override 1
 scoreboard players set @s rw.run 1

@@ -1,3 +1,4 @@
+execute if data storage railway:routes active_job run return 0
 execute if data storage railway:loading lease run tellraw @s {"text":"[Railway] Unload the test-loop lease before moving/rebuilding the loop.","color":"red"}
 execute if data storage railway:loading lease run return 0
 execute unless entity @s[type=minecraft:player,gamemode=creative] run return 0

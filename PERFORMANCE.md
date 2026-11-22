@@ -110,3 +110,9 @@ activity. Release capacity will require multiple independent trains/routes at
 same loaded-chunk set and separately measured vanilla/entity costs. The singleton
 test loop cannot represent that benchmark; generated multi-route graph fixtures
 and compact route compilation are the next backend phase.
+
+The player subsequently confirmed one-train operation at simulation distances 5
+and 12, maintaining 20 TPS. MSPT/CPU measurements and fleet capacity remain unknown;
+further performance testing is deferred. Ordered loop routes now share compiled
+braking tables and skip the per-tick approach search outside the braking corridor.
+This is an architectural change, not a measured timing improvement.

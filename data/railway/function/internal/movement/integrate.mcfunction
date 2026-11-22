@@ -1,6 +1,7 @@
 scoreboard players set #target rw.sys 0
 execute if score @s rw.run matches 1 if score @s rw.emerg matches 0 if score @s rw.signal matches 0 unless score @s rw.station matches 2 if score #valid rw.sys matches 1 run scoreboard players operation #target rw.sys = @s rw.cruise
-execute if score @s rw.station matches 1 run function railway:internal/movement/station_limit
+execute if score @s rw.station matches 1 if score @s rw.route matches 0 run function railway:internal/movement/station_limit
+execute if score @s rw.station matches 1 if score @s rw.route matches 1.. run function railway:internal/routes/cached_limit
 execute if score @s rw.override matches 1 run scoreboard players operation #target rw.sys = #max_velocity rw.sys
 execute if score @s rw.override matches 1 run scoreboard players operation @s rw.vel = #max_velocity rw.sys
 execute if score @s rw.vel < #target rw.sys run function railway:internal/movement/accelerate

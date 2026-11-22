@@ -5,6 +5,7 @@ execute unless score @s rw.epoch = #epoch rw.sys run function railway:internal/m
 execute if score @s rw.override matches 0 store result score #valid rw.sys run function railway:internal/movement/validate_runtime with storage railway:scratch ctx
 execute if score @s rw.override matches 1 store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 if score @s rw.override matches 0 run function railway:internal/movement/fault with storage railway:scratch ctx
+execute if score @s rw.route matches 1.. if score @s rw.auto matches 1 if score @s rw.override matches 0 if score #valid rw.sys matches 1 run function railway:internal/routes/follow
 function railway:internal/movement/integrate with storage railway:scratch ctx
 scoreboard players operation #train_pos rw.sys = @s rw.pos
 function railway:internal/movement/move_members with storage railway:scratch ctx

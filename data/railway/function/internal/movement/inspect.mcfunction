@@ -14,4 +14,7 @@ tellraw @s [{"text":"[Railway] Target blocks/s: "},{"type":"nbt","source":"stora
 tellraw @s [{"text":"[Railway] Progress sample: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.phase","interpret":false}]
 $execute in minecraft:overworld as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)},limit=1] store result storage railway:api result.override int 1 run scoreboard players get @s rw.override
 tellraw @s [{"text":"[Railway] Manual override: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.override","interpret":false}]
+$execute in minecraft:overworld as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)},limit=1] store result storage railway:api result.service_route int 1 run scoreboard players get @s rw.route
+$execute in minecraft:overworld as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)},limit=1] store result storage railway:api result.next_stop_index int 1 run scoreboard players get @s rw.stopidx
+tellraw @s [{"text":"[Railway] Service route: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.service_route","interpret":false},{"text":"; next stop index: "},{"type":"nbt","source":"storage","storage":"railway:api","nbt":"result.next_stop_index","interpret":false}]
 return 1

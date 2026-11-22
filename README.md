@@ -56,3 +56,10 @@ tickets once; `unload_test_loop` pauses trains and releases only pack-owned tick
 `dev/performance_report` reports workload counts. See [PERFORMANCE.md](PERFORMANCE.md)
 for timing measurements, current scale limitations and the always-loaded network
 design. High-double-digit train capacity has not been benchmarked.
+
+Shared service routes: `api/route/create` compiles an ordered station list on the
+existing directed loop. `api/route/status` reports compilation, and
+`api/train/assign_route` / `clear_route` select shared immutable service definitions.
+Automatic service cycles station stops and dwell. Profiles compile once in bounded
+batches and are reused across compatible routes; general junction pathfinding is
+not implemented yet. See TESTING.md for exact command arguments.
