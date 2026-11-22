@@ -10,6 +10,7 @@ execute unless score #different rw.sys matches 0 run return 0
 scoreboard players set #occupied rw.sys 0
 $execute as @e[tag=railway.cart,scores={rw.train=$(id)}] on passengers if entity @s[type=minecraft:player] run scoreboard players set #occupied rw.sys 1
 execute unless score #occupied rw.sys matches 0 run return 0
+$execute as @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] run function railway:internal/recovery/cancel
 $scoreboard players set @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] rw.run 0
 $tag @e[type=minecraft:marker,tag=railway.controller,scores={rw.train=$(id)}] remove railway.active
 $data modify storage railway:state trains.t$(id).state set value "retired"

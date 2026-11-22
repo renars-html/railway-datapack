@@ -12,10 +12,11 @@ scoreboard players set #two rw.sys 2
 scoreboard players set #speed_factor rw.sys 2494
 execute unless data storage railway:state override_schema run function railway:internal/movement/override_init
 scoreboard players set #fivehundred rw.sys 500
-scoreboard players set #station_job rw.sys 0
+execute unless score #station_job rw.sys matches 0..1 run scoreboard players set #station_job rw.sys 0
 execute unless data storage railway:state performance_schema run function railway:internal/performance/init
 scoreboard players set #tick rw.sys 0
 scoreboard players set #sixteen rw.sys 16
 execute unless data storage railway:state routes_schema run function railway:internal/routes/init
 execute unless data storage railway:state graph_schema run function railway:internal/graph/init
 execute unless data storage railway:state geometry_schema run function railway:internal/geometry/init
+execute unless data storage railway:state recovery_schema run function railway:internal/recovery/init

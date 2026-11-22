@@ -1,118 +1,125 @@
-# Test cycle 12: graph-selected physical branching movement
+# Test cycle 13: graph-path service and automatic recovery
 
-The player confirmed correct topology paths/costs and mid-compile reload recovery.
-Failed queued path jobs now also announce their failure in chat, rather than only
-exposing it through status. The new slice compiles selected graph edges into shared
-closed-circuit geometry and lets the registered train follow that geometry.
+The player confirms physical outer/detour movement, coupling and reload persistence
+passed. This larger batch integrates graph stations, shared automatic service,
+path-specific braking caches and revalidated automatic reload recovery. It uses
+existing compiled branch geometry: **no terrain/fixture rebuild is needed**.
+Fleet profiling stays deferred.
 
-Replace the pack and `/reload`. Use your existing 20-cart train; do not replace its
-members. Train IDs, graph IDs and path IDs are different counters. Substitute their
-numeric values in the commands below. Keep the world unpaused while jobs compile.
+Replace the datapack and `/reload`. Normal running trains may now automatically
+resume after validation; stop yours before setting up the following tests. Use
+20 carts and the existing inner detour path for this combined cycle.
 
-## Create the generated branch fixture
+## Register stations on a compiled path
 
-1. Stop and wait until stationary, dismount, and clear the old service route:
+1. Stop and wait until stationary, dismount and clear any previous service route:
 
    ```mcfunction
    /function railway:api/train/stop {train:TRAIN}
    /function railway:api/train/clear_route {train:TRAIN}
-   /function railway:api/network/unload_test_loop
    ```
 
-   Ignore unload returning 0 if no lease exists. Keep the old fixture/controller
-   and all train members loaded. Choose clear flat ground adjacent to the old loop.
-2. Run:
+   Keep the desired compiled path assigned. If you used clear_path after the
+   previous cycle, assign it again using `api/train/assign_path {train:TRAIN,path:PATH}`.
+   Find the current ID using train inspection's geometry_path field. Path IDs and
+   service-route IDs are separate counters.
+2. Stand beside a suitable straight on the inner detour and register station 1:
 
    ```mcfunction
-   /function railway:dev/branch_loop
+   /function railway:dev/path_station_here {path:PATH,station:1}
    ```
 
-   **Overwrites a 76×36×6 volume extending +X/+Z at your feet.** It relocates the
-   existing bound train and builds the outer loop plus a U-shaped inner detour,
-   split and merge. It also prints a **new sealed graph ID**. The prior virtual
-   graph remains unchanged. Existing stations/routes belong to the old geometry
-   revision and must not be used on this new fixture. No carts/cargo are replaced.
-3. Re-enable persistent loading with `api/network/load_test_loop` if desired.
-   The same chunk rectangle covers both branches.
+   Wait for the save message/particle. Register station 2 on another long straight
+   of the **same path**, preferably the outer return section. Wait again. The
+   markers designate the train's route midpoint, as before. The nearest-point
+   scan follows that compiled path, not the default outer-loop samples.
 
-## Select and ride the outer circuit
+The original `dev/station_here {station:S}` still registers default-loop stations
+(geometry 0). Compiled-path and default-loop stations cannot be mixed in one
+service definition. Nearest-point scans now also resume after reload.
+
+## Compile and run automatic graph service
 
 ```mcfunction
-/function railway:api/path/create {graph:GRAPH,from:1,to:1,via:[3]}
+/function railway:api/route/create_path {path:PATH,stops:[1,2],speed:7.5,accel:2.5,decel:2.5,dwell:100}
 ```
 
-Wait for the ready message, or check `api/path/status {path:PATH}`. Expect nodes
-`[1,2,3,1]`, edges `[1,2,3]`. Then compile its geometry:
+Note the new **service-route ID** and wait for ready (about 5 seconds unpaused).
+Check `api/route/status {route:ROUTE}`: expect geometry PATH, two frozen stations,
+correct forward distances, center braking points and a cache key containing that
+geometry ID. Assign while stopped, then board and start:
 
 ```mcfunction
-/function railway:api/path/compile_geometry {path:PATH}
-/function railway:api/path/geometry_status {path:PATH}
-```
-
-Wait until geometry state is `ready` (about 10–12 seconds of ticking at 20 TPS).
-It should have **1,598 samples**, switch_mode 0. Stop/dismount before assigning:
-
-```mcfunction
-/function railway:api/train/assign_path {train:TRAIN,path:PATH}
+/function railway:api/train/assign_route {train:TRAIN,route:ROUTE}
 /function railway:api/train/start {train:TRAIN}
 ```
 
-Assignment repositions the held train at the new circuit origin and sets static
-switch states. Board before starting if riding. Ride two laps at 7.5 blocks/s and
-then at 20 using configure_motion. Expect all 20 carts to follow the outer loop,
-going straight through the split/merge without entering the detour. Watch the
-middle/rear carts, spacing, riders and cargo through both junctions.
+Expect at least three complete **station 1 → 5-second dwell → station 2 → dwell**
+cycles, following the inner branch and merge every time. Check exact train-center
+alignment at both markers, no accumulating spacing errors, and unchanged cargo.
+Repeat with a newly created profile at speed 20 and decel 5; assign only after
+stopping. The approach may limit speed if station spacing is insufficient.
 
-## Select the inner detour
+Create another route with the same PATH/speed/decel and different acceleration or
+stop order. It should have the same braking cache key and `cache_reused:1b`.
+Routes on another geometry must use another cache key, even if speeds match.
+Trying to compile mixed-geometry station IDs must fail with a message and must
+not affect your running service. While assigned, manual station/profile changes
+remain locked. clear_route restores manual operation on the **same selected path**;
+clear_path requires clearing the service route first.
 
-Create a second closed path with `from:1,to:1,via:[4,3]`. Expect nodes
-`[1,2,4,5,3,1]`, edges `[1,4,5,6,3]`. Compile its geometry and wait for ready.
-It should have **1,812 samples**, switch_mode 1, about **226.485 blocks** instead
-of the outer circuit's **199.657 blocks**.
+## Automatic reload and quit/reopen recovery
 
-Stop, wait, dismount and assign this second path to the same train. Start and
-repeat both speeds. Every cart should take the U-shaped inner branch, merge back
-onto the outer track, and complete the loop without jumping directly between
-junctions, splitting the train, accumulating spacing error or taking the straight
-shortcut. Unchanged commanded speed should remain approximately unchanged in
-physical blocks/second despite the different circuit length.
+This changes the previous manual-restart policy. Recovery first holds position
+and velocity for at least two ticks, verifies member UUIDs/count, the controller,
+geometry/profile/cache and any existing loading lease, then restores eligible
+normal running intent. Speed ramps from zero. No player start command is needed.
 
-## Persistence and recovery
+1. **While moving/approaching:** `/reload` should cause only a short pause, then
+   automatic service resumes toward the same stop. Repeat with quit/reopen while
+   mounted; cargo, passengers, path, route, cursor and remaining distance persist.
+2. **During dwell:** use a temporary route with dwell 200 (10 seconds) to make
+   observation easier. Reload about halfway through. The remaining dwell must
+   be frozen during recovery and then count down; departure is automatic after
+   the remaining time, with no skipped/duplicated stop. Quit/reopen should preserve
+   the same behavior; time out of the world is not simulated.
+3. **Manual hold:** stop during an approach or dwell, reload/quit and reopen. It
+   must stay held until start. Manual holds now freeze remaining dwell too.
+4. **Signal hold:** blocked:1 with normal running intent must remain blocked over
+   reload. Clear the signal: service resumes automatically. If you manually stop
+   while waiting, reload and clear the signal: it must still require start.
+5. **Emergency states:** emergency_stop must remain stopped over reload. An active
+   emergency_start override must also be cancelled and remain stopped after reload;
+   it must never restart at maximum speed by itself.
+6. **Repeated reload:** two reloads during recovery must retain the original intent,
+   not replace it with the temporary hold. An explicit stop while recovering must
+   cancel automatic restart. Do not destroy inventory to test recovery failures.
 
-- `/reload` and quit/reopen while riding the detour: immediately hold, retain
-  geometry path, exact progress, members, passengers and cargo. Manual start must
-  continue on the **detour**, not revert to the outer default path. Inspect should
-  show the geometry path ID. Check progress/sampling past the outer loop's length:
-  the longer detour must not wrap early or jump when inspecting/starting.
-- Reload during geometry compilation: resume and publish the same ready result.
-  Recompiling an already-ready geometry is idempotent and reports that it exists.
-- Signal/manual holds and emergency start/stop should retain their prior behavior
-  on either circuit. Emergency override must still follow the selected geometry.
-- Retry the prior unreachable topology query on the virtual graph. In addition
-  to failed status, expect a red failure message without manually inspecting.
+Inspection now shows recovering, resume_pending and dwell_ticks. Typically healthy
+recovery completes too quickly to observe without repeated commands. Missing
+members or unavailable readiness data hold it pending for at most 200 ticking
+checks (~10 seconds at 20 TPS), then it faults and discards automatic resume intent.
+After repair, explicit normal start revalidates readiness. There is no automatic
+cart/controller spawning or cargo reconstruction.
 
-Report outer/detour choice for the entire train, branch/merge spacing, high-speed
-behavior, inspection/reload persistence, inventory and any command-loading errors.
-No fleet performance test is needed.
+## Combined control regression
 
-## Scope and return to loop service
+On the graph service, check start/stop, blocked signals, and emergency override
+as in earlier cycles. Emergency start bypasses service/holds but keeps following
+the selected geometry; normal start returns to the next service stop. Station
+order advances exactly once on arrival. Loading-lease release deliberately holds
+trains and cancels recovery intent; it does not turn ticket release into a restart.
 
-This is still one bound train on the fixture. Switches are set only during stopped,
-unoccupied assignment, not flipped while a train is crossing. A circuit requiring
-both straight and detour switch modes in different laps is explicitly rejected
-until runtime switch actions/tail-clear locks are implemented. Topology paths stay
-valid even if geometry compilation rejects an unsupported case.
+Report graph-service station accuracy/order, cache reuse, automatic recovery during
+approach/dwell, preserved manual/signal/emergency holds, cargo/riders, and errors.
+No need to repeat unrelated topology/composition/performance tests.
 
-Graph geometry currently supports closed circuits on this generated template.
-It is immutable, reusable by reference, and sampled once in bounded 16-frame batches;
-per-train progress selects its own geometry rather than overwriting the shared loop.
-It supports up to 8,192 samples and the existing 64-cart registration bound.
-No runtime pathfinding occurs while travelling.
+## Scope
 
-Saved loop-station/service-route snapshots cannot yet be used on graph geometry:
-those APIs deliberately reject it. The next integration adds graph-aware station
-positions, profile caches and automatic service. To return to the base outer loop,
-stop, dismount and use `api/train/clear_path {train:TRAIN}`. It resets progress and
-switches to straight; loop station/service APIs become available again. Mark fresh
-stations/create fresh routes on the new fixture revision. Automatic reload resume
-remains outstanding; manual start after reload is still required.
+Switches are still static for one selected circuit and one bound prototype train.
+This batch does not add simultaneous opposing traffic, runtime switch actions,
+following-block occupancy/reservations, manual rail scanning or survival UI. The
+next larger chunk addresses network traffic/conflict blocks and tail-clear locks.
+Automatic recovery here covers graceful reload/quit through the existing fixture
+lease. Dedicated-server startup/disconnect/crash consistency and general network
+chunk reference counting remain explicit validation/implementation gates.

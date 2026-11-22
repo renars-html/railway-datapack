@@ -1,3 +1,4 @@
+function railway:internal/recovery/cancel
 function railway:internal/geometry/read_selected_factor
 scoreboard players set @s rw.geom 0
 scoreboard players set @s rw.pos 0

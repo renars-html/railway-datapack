@@ -14,6 +14,8 @@ scoreboard players operation #mark_x rw.sys -= #origin_x rw.sys
 scoreboard players operation #mark_z rw.sys -= #origin_z rw.sys
 execute unless score #mark_x rw.sys matches -800..8400 run return 0
 execute unless score #mark_z rw.sys matches -800..4400 run return 0
+scoreboard players set #mark_path rw.sys 0
+scoreboard players operation #mark_length rw.sys = #base_length rw.sys
 scoreboard players set #scan rw.sys 0
 scoreboard players set #best_distance rw.sys 2147483647
 scoreboard players set #station_job rw.sys 1

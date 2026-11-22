@@ -1,3 +1,4 @@
+function railway:internal/recovery/cancel
 scoreboard players set @s rw.override 0
 scoreboard players set @s rw.vel 0
 scoreboard players set @s rw.run 0

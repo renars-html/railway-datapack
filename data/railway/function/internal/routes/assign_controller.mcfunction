@@ -1,3 +1,4 @@
+function railway:internal/recovery/cancel
 $scoreboard players set @s rw.route $(route)
 scoreboard players set @s rw.stopidx 0
 scoreboard players set @s rw.auto 1

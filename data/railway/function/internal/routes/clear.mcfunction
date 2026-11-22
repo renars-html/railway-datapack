@@ -1,4 +1,5 @@
 $execute unless entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.vel=0,rw.run=0}] run return 0
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run function railway:internal/recovery/cancel
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.route 0
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.auto 0
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.stopidx 0

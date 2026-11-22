@@ -93,8 +93,8 @@ of railway chunks for planning; overlapping routes should not multiply that coun
 4. Repeat after enabling the loading lease, keeping the same player position.
    Then travel at least 300 blocks away and check twice with train inspection:
    loaded count stays 20 and progress changes while running. Return and verify
-   inventory and station accuracy. Reload/quit retains the lease and pauses the
-   train as before; it should be inspectable remotely after reopening.
+   inventory and station accuracy. Reload/quit retains the lease. Eligible normal running intent now resumes after
+   validation; manual/emergency holds stay held. Inspection works remotely.
 5. Optional: repeat with 64 carts on the large loop, preserving cargo through the
    rebuild workflow. This measures cart-count growth for one train, not the
    per-train selection cost of 64 separate trains.
@@ -116,3 +116,9 @@ and 12, maintaining 20 TPS. MSPT/CPU measurements and fleet capacity remain unkn
 further performance testing is deferred. Ordered loop routes now share compiled
 braking tables and skip the per-tick approach search outside the braking corridor.
 This is an architectural change, not a measured timing improvement.
+
+Graph-path service now keys braking caches by geometry ID as well as profile,
+cruise speed and deceleration. Healthy reload recovery uses a short validation
+phase and then normal acceleration; it adds no extra per-cart movement work on
+the steady-state path. This is not a new capacity measurement. Fleet-scale
+profiling remains deferred as requested.

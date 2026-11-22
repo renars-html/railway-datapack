@@ -1,9 +1,10 @@
-$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=1..}] run tellraw @s {"text":"[Railway] Clear_path before using loop service/station snapshots. Branch station integration is the next layer.","color":"red"}
-$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=1..}] run return 0
 $execute unless data storage railway:routes routes.r$(route){state:"ready"} run return 0
 $execute store result score #route_profile rw.sys run data get storage railway:routes routes.r$(route).profile
 execute unless score #route_profile rw.sys = #profile rw.sys run return 0
 $execute unless entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.vel=0,rw.run=0}] run return 0
+scoreboard players set #service_geometry rw.sys 0
+$execute if data storage railway:routes routes.r$(route).geometry store result score #service_geometry rw.sys run data get storage railway:routes routes.r$(route).geometry
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] unless score @s rw.geom = #service_geometry rw.sys run return 0
 execute store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 run return 0
 $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run function railway:internal/routes/assign_controller with storage railway:scratch ctx

@@ -1,15 +1,14 @@
 # Railway backend roadmap
 
 Target: Minecraft Java Edition **26.3**, data pack format **121.0**.
-Status: the player confirms topology shortest paths/costs and mid-compile
-reload recovery pass; failed queued jobs now announce failure proactively. The
-new geometry layer compiles selected graph edges into closed circuits, assigns
-shared geometry per controller, and generates a physical split/detour/merge test
-fixture, awaiting [cycle 12 tests](TESTING.md). Loop service remains separate from
-graph geometry until station/profile integration. Current fixture switching is
-static at stopped assignment; tail-clear switching and reservations remain future
-work. Automatic reload service recovery and multiplayer validation are outstanding.
-Fleet profiling remains deferred.
+Status: the player confirms graph-selected physical outer/detour circuits pass.
+At the user's request, larger batches now precede Minecraft handoff. This batch
+adds geometry-aware station registration, reusable automatic service on compiled
+paths, path-specific braking cache keys and revalidated automatic reload recovery,
+awaiting [cycle 13 tests](TESTING.md). Normal running intent and exact remaining
+dwell survive recovery; explicit manual/emergency holds stay held and override
+never resumes automatically. One prototype train remains the traffic scope.
+Dedicated-server recovery and fleet-scale profiling remain unverified/deferred.
 
 Build a command-driven backend first. Crafting, coupling tools, station blocks,
 player menus, redstone interfaces, and survival costs come after the backend
@@ -215,14 +214,17 @@ does not prove destruction: distinguish unavailable chunks from a cart confirmed
 missing in an entity-ticking area. On a fault, preserve remaining carts and cargo;
 never respawn inventory-bearing carts as an automatic repair.
 
-Full reload recovery remains an explicit required gate: preserve pre-reload
-normal service intent, next-stop cursor, target distance and exact remaining dwell;
-revalidate entities, geometry revision, profile cache and loading lease; then
-resume eligible automatic service after a bounded recovery phase. Explicit manual,
-signal and emergency holds must remain held, and recovery override must never
-resume automatically. Freeze dwell time while recovery is pending; do not infer
-that time spent out of the world was simulated. Current behavior intentionally
-pauses and requires manual start, so it does not complete this requirement.
+Automatic recovery is now implemented for the fixture: capture pre-reload normal
+running intent (including signal waits and station dwell), hard-hold during a
+minimum two-tick recovery phase, verify controller UUID/uniqueness, member UUIDs/
+count, geometry revision, service route/cache and loading-lease completeness,
+then resume normal acceleration. Preserve pending intent across repeated reloads,
+and freeze dwell while validation or a manual hold is pending. Never infer that
+time out of the world was simulated. Explicit stop/emergency/admin geometry or
+route changes cancel the pending restart; override never restores automatically.
+A 200-check readiness timeout faults and discards resume intent, requiring repair
+and explicit start. Graceful reload/quit behavior still needs the new player gate;
+dedicated-server and crash/file-consistency recovery must be tested separately.
 
 On reload/restart, initialize only absent data, reconcile controllers and carts,
 and validate reservations before resuming. Never start all trains automatically
@@ -278,15 +280,14 @@ benchmark notes, and other development files outside runtime resource directorie
 and in ignored formats. Only actual runtime resources use `.mcfunction`, registry
 `.json`, or `pack.mcmeta`; do not create placeholder runtime resources for planning.
 
-Next: verify the 20-cart train physically follows both graph-selected circuits,
-including branch/merge continuity, per-controller lengths and reload persistence.
-Then connect graph-path geometry to immutable service routes and station-center
-snapshots (with path occurrence indices for repeated visits), and key braking
-profile caches by selected geometry as well as cruise/deceleration. Complete the
-automatic reload/dwell recovery gate after that service integration. Runtime
-switch actions/tail-clear locks, following-block conflict groups and occupancy/
-reservations follow. Full-network chunk references, compact edge runtime geometry,
-manual rail adapters and survival controls remain later backend work.
+Next: verify graph-path station service, geometry-specific profile reuse and
+automatic reload/quit recovery as one combined 20-cart gate. Then develop a larger
+traffic batch: generated following-block/conflict groups, occupancy, movement
+authority, tail-clear switch locks and multi-train fixture support. Keep route and
+chunk ownership/reference counting explicit before general network publication.
+Compact edge runtime geometry, manual rail discovery and survival UI follow the
+core backend; dedicated-server recovery remains an independent validation gate.
+Fleet profiling stays deferred at the user's request.
 
 Version reference: [official Java Edition 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3),
 Technical Changes (data pack version 121.0). The movement design above is proposed

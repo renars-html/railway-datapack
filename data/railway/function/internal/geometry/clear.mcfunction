@@ -1,3 +1,5 @@
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.route=1..}] run tellraw @s {"text":"[Railway] Clear_route before clearing its geometry path.","color":"red"}
+$execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.route=1..}] run return 0
 $execute unless entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.vel=0,rw.run=0}] run return 0
 $execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=0}] run data modify storage railway:api result set value {ok:1b}
 $execute if entity @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id),rw.geom=0}] run return 1

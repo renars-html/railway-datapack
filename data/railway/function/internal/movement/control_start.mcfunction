@@ -6,6 +6,10 @@ $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}]
 execute in minecraft:overworld store result score #valid rw.sys run function railway:internal/movement/validate with storage railway:scratch ctx
 execute unless score #valid rw.sys matches 1 run tellraw @s {"text":"[Railway] Start refused: missing member or invalid membership.","color":"red"}
 execute unless score #valid rw.sys matches 1 run return 0
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] store result score #start_ready rw.sys run function railway:internal/recovery/controller_ready with storage railway:scratch ctx
+execute unless score #start_ready rw.sys matches 1 run tellraw @s {"text":"[Railway] Controller, route cache or loading lease is not ready for normal start.","color":"red"}
+execute unless score #start_ready rw.sys matches 1 run return 0
+$execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run function railway:internal/recovery/cancel
 $execute as @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] run scoreboard players operation @s rw.epoch = #epoch rw.sys
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.emerg 0
 $scoreboard players set @e[type=minecraft:marker,tag=railway.active,scores={rw.train=$(id)}] rw.auto 1

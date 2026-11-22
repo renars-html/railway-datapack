@@ -1,79 +1,60 @@
 # Railway datapack
 
-Minecraft Java **26.3**, data pack format **121.0**. This is an operator-driven
-backend prototype. See [ROADMAP.md](ROADMAP.md) and [TESTING.md](TESTING.md).
+Minecraft Java **26.3**, data pack format **121.0**. Operator-driven backend in
+active development. See [ROADMAP.md](ROADMAP.md) and the current combined test in
+[TESTING.md](TESTING.md). No Python, build step or dependencies are needed to run.
 
-## Install
+## Installation
 
-Replace the pack folder in your world's `datapacks` directory, with `pack.mcmeta`
-directly inside it. `/reload`, then `/datapack list enabled` to check loading.
-Replacing the folder removes obsolete functions when APIs change. A ZIP with
-`pack.mcmeta` and `data/` at its root also works. No build step or dependencies.
+Replace the pack folder in your world's datapacks directory, with pack.mcmeta at
+its root. Run `/reload` and `/datapack list enabled`. Replacing instead of merging
+removes obsolete functions. A ZIP with pack.mcmeta/data at its root also works.
 
-## Current backend
+## Backend
 
-Persistent train IDs, owner/controller/cart UUID records, ordered membership,
-count-based compositions of 1–64 normal/chest carts, and a 20-cart movement test.
-The small ~40-block test loop fits 1–24 carts; `dev/large_loop` builds a ~200-block
-loop fitting up to 64. Both use generated stored geometry; physical rail edits
-do not change a route. The backend supports fractional movement,
-configurable physical speed/acceleration/deceleration, service and emergency
-stops, planned station braking/dwell, and independent signal holds. Singleplayer
-reload and quit/reopen behavior has passed earlier cycles. Exact saved-center station stops have passed player tests; dedicated-server/disconnect recovery remains unverified.
+Persistent train/member/controller UUIDs, explicit membership, 1–64 normal/chest
+cart compositions, fractional movement, physical speed/rates, manual/signal holds,
+service/emergency control, saved train-center stations, immutable graphs and
+waypoint-aware Dijkstra, shared geometry compilation, automatic ordered service,
+profile caches, persistent fixture loading and revalidated automatic recovery.
 
-Public operations are in `api/train/`; test fixtures are in `dev/`; implementation
-functions are in `internal/`. Existing ordinary minecarts are untouched unless
-explicitly registered. Owner UUIDs are stored, but these remain operator APIs;
-survival interaction and access enforcement are future work. Persistent fixture loading is available through explicit network
-commands; no automatic cargo/cart respawning is used.
+Function namespaces: `api/train/` for train operations, `api/route/` for service
+routes, `api/graph/` and `api/path/` for topology/geometry, `api/network/` for fixture
+loading, `dev/` for test helpers, `internal/` for implementation. These remain
+operator APIs; ownership enforcement and survival interactions are future work.
 
-`configure_motion {train:ID,speed:7.5,accel:2.5,decel:2.5}` configures blocks/s and
-blocks/s². Use `start`, `stop`, `emergency_stop`, `inspect`, `station_stop` and
-`set_signal` with the arguments in TESTING.md. `start` resumes an emergency stop;
-there is no separate release API. `fast` and `slow` are removed.
+The track geometry is generated/stored; physical rail edits do not reroute trains.
+The small/large/branch builders are destructive test fixtures (documented in prior
+tests). The branch fixture uses a 76×36×6 volume; old terrain cannot be restored.
+The current test harness permits one bound train and sets switches only while
+stopped/unoccupied. Shared-traffic reservations and runtime switch locks are next.
 
-The original `dev/setup` replaces a 16×16×6 volume at the Creative caller's feet;
-use a disposable world. `dev/long_train` binds a registered train to that loop and
-parks the two original carts. Composition rebuilds preserve surviving cargo in a
-separate parked grid. No function restores overwritten terrain.
+## Current controls
 
-Only actual runtime content uses `.mcfunction`, resource `.json`, or `pack.mcmeta`.
-Documentation uses `.md`, which Minecraft ignores. Runtime folders use singular
-names (`function`, `tags/function`). Automatic track discovery, physical stations/
-signals, reservations, and the survival interface are not implemented yet.
+- `configure_motion {train:T,speed:7.5,accel:2.5,decel:2.5}` uses blocks/s and
+  blocks/s². Default speed 7.5, max ~20; rates round to .5 and clamp to 2–5.
+- `start`, `stop`, `emergency_start`, `emergency_stop`, `set_signal` and `inspect`
+  control/query the train. Override jumps to max and bypasses operational holds;
+  normal start/stop restores normal rules. There is no separate emergency release.
+- `spawn` / `rebuild` create grouped normal/chest compositions. Rebuild retires the
+  old ID, preserves/parks loaded survivors and cargo, and returns a new train ID.
+- `assign_path` / `clear_path` select shared compiled closed geometry. `clear_route`
+  is required before changing a service route's geometry.
 
-Version reference: [official Java 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3).
+Graph paths and service-route IDs are different resources. After path creation,
+compile_geometry creates shared movement frames. Register centers using
+`dev/path_station_here {path:P,station:S}`; `api/route/create_path` snapshots those
+stations and the selected path/profile. `assign_route` starts ordered service on
+an already matching path. The legacy `dev/station_here` / `api/route/create`
+continue to support the default loop. TESTING.md contains complete commands.
 
-`dev/station_here {station:1}` saves the nearest stored path point as a visible
-train-center station. Use `station_stop {train:ID,station:1,dwell:100}`. Accel/decel
-profiles round to 0.5 between 2 and 5 blocks/s². `emergency_start {train:ID}` jumps
-to maximum speed and bypasses operational holds; normal start/stop restores normal
-rules. `emergency_stop` cancels override immediately. See TESTING.md for the
-large-loop build footprint and current backend limitations.
+Reload/quit now automatically restores eligible normal running intent after
+readiness checks; manual stops and emergency states stay held. Dwell time freezes
+during recovery/manual pause. Missing/invalid readiness eventually faults without
+spawning replacements. Native fixture loading tickets persist and are released
+only when pack-owned; see [PERFORMANCE.md](PERFORMANCE.md). Server/disconnect and
+crash consistency are not yet validated. Fleet profiling is deferred.
 
-Persistent fixture loading: `api/network/load_test_loop` acquires native chunk
-tickets once; `unload_test_loop` pauses trains and releases only pack-owned tickets.
-`dev/performance_report` reports workload counts. See [PERFORMANCE.md](PERFORMANCE.md)
-for timing measurements, current scale limitations and the always-loaded network
-design. High-double-digit train capacity has not been benchmarked.
-
-Shared service routes: `api/route/create` compiles an ordered station list on the
-existing directed loop. `api/route/status` reports compilation, and
-`api/train/assign_route` / `clear_route` select shared immutable service definitions.
-Automatic service cycles station stops and dwell. Profiles compile once in bounded
-batches and are reused across compatible routes; general junction pathfinding is
-not implemented yet. See TESTING.md for exact command arguments.
-
-The topology backend now provides `api/graph/*` and `api/path/*` for immutable
-directed graphs and waypoint-aware shortest paths. `dev/graph_fixture` generates
-virtual branch data without changing terrain or train movement. Published topology
-paths are distinct from loop-service route IDs. Closed paths on the generated
-branch fixture can now be compiled and assigned as physical train geometry. Reload during dwell still requires manual start; automatic recovery is
-an outstanding gate. See TESTING.md for the current backend-only test cycle.
-
-`dev/branch_loop` builds the split/detour/merge template (76×36×6 destructive build
-volume). `api/path/compile_geometry {path:P}` compiles a ready closed topology path;
-`geometry_status` reports readiness. `api/train/assign_path {train:T,path:P}` selects
-shared geometry for a stopped/unoccupied train; `clear_path` restores the base
-loop. Stations/service on graph geometry and runtime switch locking are the next
-layers. Failed asynchronous path/geometry jobs now announce failure in chat.
+All human documentation uses .md and development tools use .py, which Minecraft
+ignores. Only actual runtime resources use .mcfunction, resource .json and
+pack.mcmeta; resource directories use singular names such as function.
